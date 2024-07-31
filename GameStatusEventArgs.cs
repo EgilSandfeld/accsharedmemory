@@ -2,6 +2,15 @@
 
 namespace AssettoCorsaSharedMemory
 {
+    public class MemoryStatusEventArgs : EventArgs
+    {
+        public AC_MEMORY_STATUS Status {get; private set;}
+
+        public MemoryStatusEventArgs(AC_MEMORY_STATUS status)
+        {
+            Status = status;
+        }
+    }
     public class GameStatusEventArgs : EventArgs
     {
         public AC_STATUS GameStatus {get; private set;}
