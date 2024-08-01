@@ -222,7 +222,7 @@ namespace AssettoCorsaSharedMemory
         public int ActiveCars;
 
         /// <summary>
-        /// Coordinates of cars on track
+        /// Coordinates of cars on track, expressed in meters
         /// <para>
         /// AC DOCUMENTATION ONLY SHOWS ONE CAR VALUE
         /// ACC SHOWS 60 CAR VALUES
@@ -557,6 +557,8 @@ namespace AssettoCorsaSharedMemory
 
         /// <summary>
         /// Tyre Set currently in use
+        /// 1-indexed
+        /// Equals the value in pit menu
         /// </summary>
         public int CurrentTyreSet;
 

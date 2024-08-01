@@ -141,6 +141,7 @@ public class AssettoCorsa
 
     public enum CarModel
     {
+        Unknown = -1,
         amr_v12_vantage_gt3 = 12,
         audi_r8_lms = 3,
         bentley_continental_gt3_2016 = 11,
@@ -188,6 +189,53 @@ public class AssettoCorsa
         porsche_992_gt3_r = 101, //What is the model ID?
         lamborghini_huracan_gt3_evo2 = 102, //What is the model ID?
         mclaren_720s_gt3_evo = 103 //What is the model ID?
+    };
+    
+    public static readonly Dictionary<CarModel, int> MaxSteeringAngleDegrees = new Dictionary<CarModel, int>
+    {
+        {CarModel.amr_v12_vantage_gt3, 320},
+        {CarModel.audi_r8_lms, 360},
+        {CarModel.bentley_continental_gt3_2016, 320},
+        {CarModel.bentley_continental_gt3_2018, 320},
+        {CarModel.bmw_m6_gt3, 283},
+        {CarModel.jaguar_g3, 360},
+        {CarModel.ferrari_488_gt3, 240},
+        {CarModel.honda_nsx_gt3, 310},
+        {CarModel.lamborghini_gallardo_rex, 360},
+        {CarModel.lamborghini_huracan_gt3, 310},
+        {CarModel.lamborghini_huracan_st, 310},
+        {CarModel.lexus_rc_f_gt3, 320},
+        {CarModel.mclaren_650s_gt3, 240},
+        {CarModel.mercedes_amg_gt3, 320},
+        {CarModel.nissan_gt_r_gt3_2017, 320},
+        {CarModel.nissan_gt_r_gt3_2018, 320},
+        {CarModel.porsche_991_gt3_r, 400},
+        {CarModel.porsche_991ii_gt3_cup, 400},
+        {CarModel.amr_v8_vantage_gt3, 320},
+        {CarModel.audi_r8_lms_evo, 360},
+        {CarModel.honda_nsx_gt3_evo, 310},
+        {CarModel.lamborghini_huracan_gt3_evo, 310},
+        {CarModel.mclaren_720s_gt3, 240},
+        {CarModel.porsche_991ii_gt3_r, 400},
+        {CarModel.alpine_a110_gt4, 360},
+        {CarModel.amr_v8_vantage_gt4, 320},
+        {CarModel.audi_r8_gt4, 360},
+        {CarModel.bmw_m4_gt4, 246},
+        {CarModel.chevrolet_camaro_gt4r, 360},
+        {CarModel.ginetta_g55_gt4, 360},
+        {CarModel.ktm_xbow_gt4, 290},
+        {CarModel.maserati_mc_gt4, 450},
+        {CarModel.mclaren_570s_gt4, 240},
+        {CarModel.mercedes_amg_gt4, 246},
+        {CarModel.porsche_718_cayman_gt4_mr, 400},
+        {CarModel.ferrari_488_gt3_evo, 240},
+        {CarModel.mercedes_amg_gt3_evo, 320},
+        {CarModel.bmw_m4_gt3, 270},
+        {CarModel.audi_r8_lms_evo_ii, 360},
+        {CarModel.bmw_m2_cs_racing, 180},
+        {CarModel.ferrari_488_challenge_evo, 240},
+        {CarModel.lamborghini_huracan_st_evo2, 310},
+        {CarModel.porsche_992_gt3_cup, 270}
     };
 
     public event MemoryStatusChangedHandler MemoryStatusChanged;

@@ -452,40 +452,40 @@ namespace AssettoCorsaSharedMemory
         /// </summary>
         public int P2PStatus;
 
-        /// <summary>
-        /// Maximum engine rpm
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public float CurrentMaxRPM;
+        // /// <summary>
+        // /// Maximum engine rpm
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        //public float CurrentMaxRPM;
 
-        /// <summary>
-        /// Not shown in ACC
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public float[] MZ;
-        
-        /// <summary>
-        /// Not shown in ACC
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public float[] FX;
-
-        /// <summary>
-        /// Not shown in ACC
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public float[] FY;
+        // /// <summary>
+        // /// Not shown in ACC
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        // public float[] MZ;
+        //
+        // /// <summary>
+        // /// Not shown in ACC
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        // public float[] FX;
+        //
+        // /// <summary>
+        // /// Not shown in ACC
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        // public float[] FY;
 
         /// <summary>
         /// Tyre slip ratio [FL, FR, RL, RR] in radians
@@ -499,39 +499,40 @@ namespace AssettoCorsaSharedMemory
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
         public float[] SlipAngle;
 
-        /// <summary>
-        /// TC in action
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int TCInAction;
-
-        /// <summary>
-        /// ABS in action
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int ABSInAction;
-
-        /// <summary>
-        /// Suspensions damage levels [FL, FR, RL, RR]
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public float[] SuspensionDamage;
+        // /// <summary>
+        // /// TC in action
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int TCInAction;
+        //
+        // /// <summary>
+        // /// ABS in action
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int ABSInAction;
+        //
+        // /// <summary>
+        // /// Suspensions damage levels [FL, FR, RL, RR]
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        // public float[] SuspensionDamage;
         
-        /// <summary>
-        /// Tyres core temperatures [FL, FR, RL, RR]
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public float[] TyreTemp;
+        // /// <summary>
+        // /// Tyres core temperatures [FL, FR, RL, RR]
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC - OR IS IT?!?
+        // /// Actually set - Copies TyreCoreTemperature
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+        // public float[] TyreTemp;
 
         /// <summary>
         /// Water Temperature

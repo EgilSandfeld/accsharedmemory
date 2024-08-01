@@ -47,7 +47,7 @@ namespace AssettoCorsaSharedMemory
         /// </summary>
         [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
         public String CarModel;
-
+        
         /// <summary>
         /// Name of the track
         /// </summary>
