@@ -5,17 +5,17 @@ namespace AssettoCorsaSharedMemory
 {
     public class StaticInfoEventArgs : EventArgs
     {
-        public StaticInfoEventArgs (StaticInfo staticInfo)
+        public StaticInfoEventArgs (ACCSharedMemoryStatic accSharedMemoryStatic)
         {
-            this.StaticInfo = staticInfo;
+            this.ACCSharedMemoryStatic = accSharedMemoryStatic;
         }
 
-        public StaticInfo StaticInfo { get; private set; }
+        public ACCSharedMemoryStatic ACCSharedMemoryStatic { get; private set; }
     }
 
     [StructLayout (LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
     [Serializable]
-    public struct StaticInfo
+    public struct ACCSharedMemoryStatic
     {
         /// <summary>
         /// Version of the Shared Memory structure
@@ -133,11 +133,11 @@ namespace AssettoCorsaSharedMemory
         /// </summary>
         public float MaxTurboBoost;
 
-        [Obsolete("AirTemp since 1.6 in physic")]
-        public float Deprecated1;
+        //[Obsolete("AirTemp since 1.6 in physic")]
+        //public float Deprecated1;
 
-        [Obsolete("RoadTemp since 1.6 in physic")]
-        public float Deprecated2;
+        //[Obsolete("RoadTemp since 1.6 in physic")]
+        //public float Deprecated2;
 
         /// <summary>
         /// Cut penalties enabled: 1 (true) or 0 (false)
@@ -181,82 +181,82 @@ namespace AssettoCorsaSharedMemory
 
         // since 1.7.1
 
-        /// <summary>
-        /// If player’s car has the “DRS” system: 0 or 1
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int HasDRS;
+        // /// <summary>
+        // /// If player’s car has the “DRS” system: 0 or 1
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int HasDRS;
 
-        /// <summary>
-        /// If player’s car has the “ERS” system: 0 or 1
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int HasERS;
+        // /// <summary>
+        // /// If player’s car has the “ERS” system: 0 or 1
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int HasERS;
 
-        /// <summary>
-        /// If player’s car has the “KERS” system: 0 or 1
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int HasKERS;
+        // /// <summary>
+        // /// If player’s car has the “KERS” system: 0 or 1
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int HasKERS;
 
-        /// <summary>
-        /// Max KERS Joule value of the player’s car
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public float KersMaxJoules;
+        // /// <summary>
+        // /// Max KERS Joule value of the player’s car
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public float KersMaxJoules;
 
-        /// <summary>
-        /// Count of possible engine brake settings of the player’s car
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int EngineBrakeSettingsCount;
+        // /// <summary>
+        // /// Count of possible engine brake settings of the player’s car
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int EngineBrakeSettingsCount;
 
-        /// <summary>
-        /// Count of the possible power controllers of the player’s car
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int ErsPowerControllerCount;
+        // /// <summary>
+        // /// Count of the possible power controllers of the player’s car
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int ErsPowerControllerCount;
 
         // since 1.7.2
 
-        /// <summary>
-        /// Length of the spline of the selected track
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public float TrackSplineLength;
+        // /// <summary>
+        // /// Length of the spline of the selected track
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public float TrackSplineLength;
 
-        /// <summary>
-        /// Name of the track’s layout (only multi-layout tracks)
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
-        public string TrackConfiguration;
+        // /// <summary>
+        // /// Name of the track’s layout (only multi-layout tracks)
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
+        // public string TrackConfiguration;
 
         // since 1.10.2
 
-        /// <summary>
-        /// Max ERS Joule value of the player’s car
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public float ErsMaxJ;
+        // /// <summary>
+        // /// Max ERS Joule value of the player’s car
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public float ErsMaxJ;
 
         // since 1.13
 
@@ -285,13 +285,13 @@ namespace AssettoCorsaSharedMemory
         [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
         public String CarSkin;
 
-        /// <summary>
-        /// How many positions are going to be swapped in the second race
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public int ReversedGridPositions;
+        // /// <summary>
+        // /// How many positions are going to be swapped in the second race
+        // /// <para>
+        // /// NOT AVAILABLE IN ACC
+        // /// </para>
+        // /// </summary>
+        // public int ReversedGridPositions;
 
         /// <summary>
         /// Pit window opening time

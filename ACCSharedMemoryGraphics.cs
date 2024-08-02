@@ -87,17 +87,17 @@ namespace AssettoCorsaSharedMemory
 
     public class GraphicsEventArgs : EventArgs
     {
-        public GraphicsEventArgs (Graphics graphics)
+        public GraphicsEventArgs (ACCSharedMemoryGraphics accSharedMemoryGraphics)
         {
-            this.Graphics = graphics;
+            this.ACCSharedMemoryGraphics = accSharedMemoryGraphics;
         }
 
-        public Graphics Graphics { get; private set; }
+        public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; }
     }
 
     [StructLayout (LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
     [Serializable]
-    public struct Graphics
+    public struct ACCSharedMemoryGraphics
     {
         /// <summary>
         /// Current step index
@@ -197,7 +197,7 @@ namespace AssettoCorsaSharedMemory
         /// Tyre compound used
         /// </summary>
         [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
-        public String TyreCompound;
+        public string TyreCompound;
 
         /// <summary>
         /// Replay multiplier

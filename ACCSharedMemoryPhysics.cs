@@ -5,12 +5,12 @@ namespace AssettoCorsaSharedMemory
 {
     public class PhysicsEventArgs : EventArgs
     {
-        public PhysicsEventArgs (Physics physics)
+        public PhysicsEventArgs (ACCSharedMemoryPhysics accSharedMemoryPhysics)
         {
-            this.Physics = physics;
+            this.ACCSharedMemoryPhysics = accSharedMemoryPhysics;
         }
 
-        public Physics Physics { get; private set; }
+        public ACCSharedMemoryPhysics ACCSharedMemoryPhysics { get; private set; }
     }
 
     [StructLayout (LayoutKind.Sequential)]
@@ -23,7 +23,7 @@ namespace AssettoCorsaSharedMemory
 
     [StructLayout (LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
     [Serializable]
-    public struct Physics
+    public struct ACCSharedMemoryPhysics
     {
         /// <summary>
         /// Current step index

@@ -28,6 +28,7 @@ public enum AC_MEMORY_STATUS { DISCONNECTED, CONNECTING, CONNECTED }
     
 public class AssettoCorsa
 {
+    public Action<string> Logger { get; }
     private Timer sharedMemoryRetryTimer;
     private AC_MEMORY_STATUS memoryStatus = AC_MEMORY_STATUS.DISCONNECTED;
     public bool IsConnected => (memoryStatus == AC_MEMORY_STATUS.CONNECTED);
@@ -312,8 +313,9 @@ public class AssettoCorsa
         { AC_STATUS.AC_REPLAY, "Replay" },
     };
 
-    public AssettoCorsa()
+    public AssettoCorsa(Action<string> logger)
     {
+        Logger = logger;
         sharedMemoryRetryTimer = new Timer(2000);
         sharedMemoryRetryTimer.AutoReset = true;
         sharedMemoryRetryTimer.Elapsed += sharedMemoryRetryTimer_Elapsed;
@@ -491,19 +493,19 @@ public class AssettoCorsa
         if (GraphicsUpdated != null)
         {
             GraphicsUpdated(this, e);
-            if (gameStatus != e.Graphics.Status)
+            if (gameStatus != e.ACCSharedMemoryGraphics.Status)
             {
-                gameStatus = e.Graphics.Status;
+                gameStatus = e.ACCSharedMemoryGraphics.Status;
                 GameStatusChanged?.Invoke(this, new GameStatusEventArgs(gameStatus));
             }
-            if (pitStatus != e.Graphics.IsInPit)
+            if (pitStatus != e.ACCSharedMemoryGraphics.IsInPit)
             {
-                pitStatus = e.Graphics.IsInPit;
+                pitStatus = e.ACCSharedMemoryGraphics.IsInPit;
                 PitStatusChanged?.Invoke(this, new PitStatusEventArgs(pitStatus));
             }
-            if (sessionType != e.Graphics.Session)
+            if (sessionType != e.ACCSharedMemoryGraphics.Session)
             {
-                sessionType = e.Graphics.Session;
+                sessionType = e.ACCSharedMemoryGraphics.Session;
                 SessionTypeChanged?.Invoke(this, new SessionTypeEventArgs(sessionType));
             }
         }
@@ -536,8 +538,8 @@ public class AssettoCorsa
 
         try
         {
-            Physics physics = ReadPhysics();
-            OnPhysicsUpdated(new PhysicsEventArgs(physics));
+            ACCSharedMemoryPhysics accSharedMemoryPhysics = ReadPhysics();
+            OnPhysicsUpdated(new PhysicsEventArgs(accSharedMemoryPhysics));
         }
         catch (AssettoCorsaNotStartedException)
         { }
@@ -550,8 +552,8 @@ public class AssettoCorsa
 
         try
         {
-            Graphics graphics = ReadGraphics();
-            OnGraphicsUpdated(new GraphicsEventArgs(graphics));
+            ACCSharedMemoryGraphics accSharedMemoryGraphics = ReadGraphics();
+            OnGraphicsUpdated(new GraphicsEventArgs(accSharedMemoryGraphics));
         }
         catch (AssettoCorsaNotStartedException)
         { }
@@ -564,8 +566,8 @@ public class AssettoCorsa
 
         try
         {
-            StaticInfo staticInfo = ReadStaticInfo();
-            OnStaticInfoUpdated(new StaticInfoEventArgs(staticInfo));
+            ACCSharedMemoryStatic accSharedMemoryStatic = ReadStaticInfo();
+            OnStaticInfoUpdated(new StaticInfoEventArgs(accSharedMemoryStatic));
         }
         catch (AssettoCorsaNotStartedException)
         { }
@@ -575,47 +577,47 @@ public class AssettoCorsa
     /// Read the current physics data from shared memory
     /// </summary>
     /// <returns>A Physics object representing the current status, or null if not available</returns>
-    private Physics ReadPhysics()
+    private ACCSharedMemoryPhysics ReadPhysics()
     {
         if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || physicsMMF == null)
             throw new AssettoCorsaNotStartedException();
 
         using var stream = physicsMMF.CreateViewStream();
         using var reader = new BinaryReader(stream);
-        var size = Marshal.SizeOf(typeof(Physics));
+        var size = Marshal.SizeOf(typeof(ACCSharedMemoryPhysics));
         var bytes = reader.ReadBytes(size);
         var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-        var data = (Physics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(Physics));
+        var data = (ACCSharedMemoryPhysics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryPhysics));
         handle.Free();
         return data;
     }
 
-    private Graphics ReadGraphics()
+    private ACCSharedMemoryGraphics ReadGraphics()
     {
         if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || graphicsMMF == null)
             throw new AssettoCorsaNotStartedException();
 
         using var stream = graphicsMMF.CreateViewStream();
         using var reader = new BinaryReader(stream);
-        var size = Marshal.SizeOf(typeof(Graphics));
+        var size = Marshal.SizeOf(typeof(ACCSharedMemoryGraphics));
         var bytes = reader.ReadBytes(size);
         var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-        var data = (Graphics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(Graphics));
+        var data = (ACCSharedMemoryGraphics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryGraphics));
         handle.Free();
         return data;
     }
 
-    private StaticInfo ReadStaticInfo()
+    private ACCSharedMemoryStatic ReadStaticInfo()
     {
         if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || staticInfoMMF == null)
             throw new AssettoCorsaNotStartedException();
 
         using var stream = staticInfoMMF.CreateViewStream();
         using var reader = new BinaryReader(stream);
-        var size = Marshal.SizeOf(typeof(StaticInfo));
+        var size = Marshal.SizeOf(typeof(ACCSharedMemoryStatic));
         var bytes = reader.ReadBytes(size);
         var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-        var data = (StaticInfo)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(StaticInfo));
+        var data = (ACCSharedMemoryStatic)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryStatic));
         handle.Free();
         return data;
     }
