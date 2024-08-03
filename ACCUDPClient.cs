@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using AssettoCorsaSharedMemory;
 
 namespace Sim.AssettoCorsaCompetizione;
@@ -14,9 +15,19 @@ namespace Sim.AssettoCorsaCompetizione;
 public class AccClient
 {
     public Action<string> Logger { get; }
+    
+    public string CommandPassword { get; set; }
+    public int MsRealtimeUpdateInterval { get; set; }
+    public string ConnectionPassword { get; set; }
+    public string DisplayName { get; set; }
+    public string IpAddress { get; set; }
+    public int Port { get; set; }
+
+    private static readonly object udpLock = new ();
+    
     private IPEndPoint _server;
-    private string _displayName;
-    private int _updateIntervalMs;
+    //private string _displayName;
+    //private int _updateIntervalMs;
     private UdpClient _udpClient;
     private UDPState _connectionState = UDPState.Disconnected;
     private int _broadcastingProtocolVersion = 4;
@@ -27,6 +38,7 @@ public class AccClient
     private bool _stopSignal;
     private Thread _thread;
     private ThreadedSocketReader _reader;
+    private bool _udpAlive;
 
     public event EventHandler<UDPState> OnConnectionStateChange;
     public event EventHandler<TrackData> OnTrackDataUpdate;
@@ -64,8 +76,8 @@ public class AccClient
 
     private void Send(params object[] args)
     {
-        if (!IsAlive)
-            throw new InvalidOperationException("Must be started");
+        //if (!IsAlive)
+        //    throw new InvalidOperationException("Must be started");
 
         var buffer = new List<byte>();
         foreach (var arg in args)
@@ -86,7 +98,7 @@ public class AccClient
             }
         }
 
-        _udpClient.Send(buffer.ToArray(), buffer.Count, _server);
+        _udpClient.Send(buffer.ToArray(), buffer.Count);
     }
 
     // private T Get<T>()
@@ -320,15 +332,15 @@ public class AccClient
         OnBroadcastingEvent?.Invoke(this, broadcastingEvent);
     }
 
-    private void RequestConnection(string password, string commandPassword)
+    private void RequestConnection()
     {
         Send(
             (byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION,
             (byte)_broadcastingProtocolVersion,
-            _displayName,
-            password,
-            _updateIntervalMs,
-            commandPassword
+            DisplayName,
+            ConnectionPassword,
+            MsRealtimeUpdateInterval,
+            CommandPassword
         );
     }
 
@@ -456,33 +468,150 @@ public class AccClient
         if (IsAlive)
             throw new InvalidOperationException("Must be stopped");
 
+        IpAddress = url;
+        Port = port;
+        DisplayName = displayName;
+        ConnectionPassword = password;
+        MsRealtimeUpdateInterval = updateIntervalMs;
+        CommandPassword = commandPassword;
+        
         UpdateConnectionState(UDPState.Connecting);
         _server = new IPEndPoint(IPAddress.Parse(url), port);
-        _udpClient = new UdpClient();
-        _reader = new ThreadedSocketReader(_udpClient.Client);
-        _thread = new Thread(Run);
+        //_udpClient = new UdpClient();
+        //_reader = new ThreadedSocketReader(_udpClient.Client);
+        //_thread = new Thread(Run);
         _stopSignal = false;
-        _thread.Start();
+        //_thread.Start();
         _connectionId = null;
         _writable = false;
-        _displayName = displayName;
-        _updateIntervalMs = updateIntervalMs;
-        RequestConnection(password, commandPassword);
+        //_displayName = displayName;
+        //_updateIntervalMs = updateIntervalMs;
+        //RequestConnection(password, commandPassword);
+        Task.Run(Connect);
+    }
+
+    private UdpClient GetUdpClient(bool isSending = false)
+    {
+        lock(udpLock)
+        { 
+            if (_udpClient == null || !_udpClient.Client.Connected)
+            {
+                if (_udpClient != null)
+                {
+                    try
+                    {
+                        _udpClient.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger?.Invoke(e.Message);
+                    }
+                }
+
+                _udpClient = new UdpClient();
+                _udpClient.Connect(IpAddress, Port);
+
+                if(!isSending)
+                    RequestConnection();
+            }
+
+            return _udpClient;
+        }
+    }
+    
+    private async Task Connect()
+    {
+        _udpAlive = true;
+
+        while (_udpAlive)
+        {
+            try
+            {
+                var client = GetUdpClient();
+
+                if (!client.Client.Connected)
+                {
+                    await Task.Delay(1000);
+                    continue;
+                }
+
+                var udpReceiveTask = client.ReceiveAsync();
+
+                if (!udpReceiveTask.IsCompleted)
+                    udpReceiveTask.Wait(20000);
+
+                if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
+                {
+                    try
+                    {
+                        client.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger?.Invoke(e.Message);
+                    }
+
+                    _udpClient = null;
+                }
+                else
+                {
+                    var udpPacket = udpReceiveTask.Result;
+
+                    if (udpPacket.Buffer.Length == 0)
+                        await Task.Delay(10);
+                    else
+                    {
+                        using var ms = new MemoryStream(udpPacket.Buffer);
+                        using var reader = new BinaryReader(ms);
+                        
+                        var messageTypeData = reader.Read(1, 100);
+                        if (messageTypeData == null)
+                            continue;
+
+                        var messageType = messageTypeData[0];
+                        _getMethods[messageType]();
+                    }
+                }
+            }
+            catch (SocketException)
+            {
+                await Task.Delay(1000);
+                //Ignored: Not UDP server aka ACC isn't running
+            }
+            catch (Exception ex)
+            {
+                Logger?.Invoke(ex.Message);
+            }
+        }
     }
 
     public void Stop(string reason = "disconnected")
     {
-        if (!IsAlive)
-            throw new InvalidOperationException($"Must be started: {reason}");
+        // if (!IsAlive)
+        //     throw new InvalidOperationException($"Must be started: {reason}");
+        //
+        // _stopSignal = true;
+        // if (_thread != null)
+        // {
+        //     _thread.Join();
+        //     _thread = null;
+        // }
+        
+        _udpAlive = false;
 
-        _stopSignal = true;
-        if (_thread != null)
+        if (_udpClient != null)
         {
-            _thread.Join();
-            _thread = null;
+            try
+            {
+                _udpClient.Close();
+            }
+            catch (Exception e)
+            {
+                Logger?.Invoke(e.Message);
+            }
         }
 
-        Logger($"ACC UDP Client Stopped: {reason}");
+        Logger?.Invoke($"ACC UDP Client Stopped: {reason}");
         UpdateConnectionState(UDPState.Disconnected);
     }
 }
@@ -549,8 +678,23 @@ public class ThreadedSocketReader
                 return null;
             }
 
-            if (_data.Count < size && !Monitor.Wait(_dataLock, timeout))
-                return null;
+            if (_data.Count < size)
+            {
+                if (timeout == -1)
+                {
+                    Monitor.Wait(_dataLock);
+                }
+                else if (timeout > 0)
+                {
+                    if (!Monitor.Wait(_dataLock, timeout))
+                        return null;
+                }
+                else
+                {
+                    // Timeout is 0 or invalid negative value
+                    return null;
+                }
+            }
 
             var data = _data.GetRange(0, Math.Min(size, _data.Count)).ToArray();
             _data.RemoveRange(0, data.Length);
@@ -580,6 +724,12 @@ public class ThreadedSocketReader
                         Monitor.PulseAll(_dataLock);
                     }
                 }
+            }
+            catch (SocketException se)
+            {
+                //Logger($"SocketException: {se.Message}");
+                //UpdateConnectionState(UDPState.Disconnected);
+                break;
             }
             catch (Exception e)
             {

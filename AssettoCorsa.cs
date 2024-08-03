@@ -387,6 +387,9 @@ public class AssettoCorsa
 
     private void SetMemoryStatus(AC_MEMORY_STATUS status)
     {
+        if (memoryStatus == status)
+            return;
+        
         memoryStatus = status;
         var memoryStatusEventArgs = new MemoryStatusEventArgs(status);
         OnMemoryStatusChanged(memoryStatusEventArgs);

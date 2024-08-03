@@ -35,8 +35,6 @@ public class ACCUDPConnector
         client.OnRealtimeUpdate += (sender, args) => OnRealtimeUpdate?.Invoke(sender, args);
         client.OnRealtimeCarUpdate += (sender, args) => OnRealtimeCarUpdate?.Invoke(sender, args);
         client.OnBroadcastingEvent += (sender, args) => OnBroadcastingEvent?.Invoke(sender, args);
-        
-        Start();
     }
 
     public void Start()
