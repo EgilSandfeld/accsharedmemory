@@ -199,13 +199,13 @@ namespace AssettoCorsaSharedMemory
         [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
         public string TyreCompound;
 
-        /// <summary>
-        /// Replay multiplier
-        /// <para>
-        /// NOT AVAILABLE IN ACC
-        /// </para>
-        /// </summary>
-        public float ReplayTimeMultiplier;
+        ///// <summary>
+        ///// Replay multiplier
+        ///// <para>
+        ///// NOT AVAILABLE IN ACC
+        ///// </para>
+        ///// </summary>
+        //public float ReplayTimeMultiplier;
 
         /// <summary>
         /// Car position on track spline (0.0 start to 1.0 finish)

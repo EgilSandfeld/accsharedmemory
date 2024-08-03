@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using Newtonsoft.Json.Linq;
 
@@ -12,6 +13,7 @@ public class ACCUDPConnector
     private string udpCommandPassword;
     private string udpConnectionPassword;
     private AccClient client;
+    public AccClient Client => client;
     public EventHandler<UDPState> OnConnectionStateChange;
     public EventHandler<TrackData> OnTrackDataUpdate;
     public EventHandler<EntryListCar> OnEntryListCarUpdate;
@@ -76,7 +78,7 @@ public class ACCUDPConnector
                 return false;
             }
 
-            broadcastingJson = File.ReadAllText(broadcastingFilePath);
+            broadcastingJson = File.ReadAllText(broadcastingFilePath, Encoding.Unicode);
             var broadcasting = JObject.Parse(broadcastingJson);
             udpPort = (broadcasting["updListenerPort"] ?? 0).Value<int>();
             udpConnectionPassword = broadcasting["connectionPassword"]?.Value<string>();
@@ -89,5 +91,23 @@ public class ACCUDPConnector
             ex.Data.Add("broadcastingJson", broadcastingJson);
             throw;
         }
+    }
+    
+    private Encoding DetectEncoding(byte[] bytes)
+    {
+        // Check for UTF-8 BOM
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            return Encoding.UTF8;
+
+        // Check for UTF-16 LE BOM
+        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+            return Encoding.Unicode;
+
+        // Check for UTF-16 BE BOM
+        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            return Encoding.BigEndianUnicode;
+
+        // If no BOM is detected, default to UTF-8
+        return Encoding.UTF8;
     }
 }

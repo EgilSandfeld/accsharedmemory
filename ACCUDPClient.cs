@@ -209,7 +209,9 @@ public class AccClient
             Location = (CarLocation)Get<byte>(),
             Kmh = Get<ushort>(),
             Position = Get<ushort>(),
+#pragma warning disable CS0612 // Type or member is obsolete
             CupPosition = Get<ushort>(),
+#pragma warning restore CS0612 // Type or member is obsolete
             TrackPosition = Get<ushort>(),
             SplinePosition = Get<float>(),
             Laps = Get<ushort>(),
@@ -449,7 +451,7 @@ public class AccClient
 
     public bool IsAlive => _thread != null && _thread.IsAlive;
 
-    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "C# ACCAPI", int updateIntervalMs = 100)
+    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "DRE x ACC", int updateIntervalMs = 16)
     {
         if (IsAlive)
             throw new InvalidOperationException("Must be stopped");

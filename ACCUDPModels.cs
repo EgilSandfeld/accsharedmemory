@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using AssettoCorsaSharedMemory;
 
 namespace Sim.AssettoCorsaCompetizione;
@@ -55,7 +56,10 @@ public class RealtimeCarUpdate
     
     /// <summary>
     /// Official P/Q/R position
+    /// IS NOT Class Position
+    /// AVOID USING THIS
     /// </summary>
+    [Obsolete]
     public ushort CupPosition { get; set; }
     
     /// <summary>
