@@ -58,11 +58,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ACCSharedMemoryGraphicsEnums.cs" />
     <Compile Include="ACCUDPClient.cs" />
     <Compile Include="ACCUDPConnector.cs" />
     <Compile Include="ACCUDPEnums.cs" />
     <Compile Include="ACCUDPModels.cs" />
     <Compile Include="AssettoCorsa.cs" />
+    <Compile Include="Coordinates.cs" />
     <Compile Include="StaticCarData.cs" />
     <Compile Include="GameStatusEventArgs.cs" />
     <Compile Include="ACCSharedMemoryGraphics.cs" />

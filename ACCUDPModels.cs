@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using AssettoCorsaSharedMemory;
 
 namespace Sim.AssettoCorsaCompetizione;
@@ -19,7 +20,7 @@ public class RealtimeUpdate
     public bool IsReplayPlaying { get; set; }
     public float ReplaySessionTime { get; set; }
     public float ReplayRemainingTime { get; set; }
-    public float TimeOfDayMs { get; set; }
+    public float TimeOfDaySeconds { get; set; }
     public byte AmbientTemp { get; set; }
     public byte TrackTemp { get; set; }
     public float Clouds { get; set; }
@@ -39,6 +40,11 @@ public class Lap
     public bool IsOutlap { get; set; }
     public bool IsInlap { get; set; }
     public LapType Type { get; set; }
+    
+    public override string ToString()
+    {
+        return (LapTimeMs / 1000f).ToString("F3", CultureInfo.InvariantCulture);
+    }
 }
 
 public class RealtimeCarUpdate
@@ -59,7 +65,7 @@ public class RealtimeCarUpdate
     /// IS NOT Class Position
     /// AVOID USING THIS
     /// </summary>
-    [Obsolete]
+    [Obsolete("IS NOT Class Position. AVOID USING THIS")]
     public ushort CupPosition { get; set; }
     
     /// <summary>

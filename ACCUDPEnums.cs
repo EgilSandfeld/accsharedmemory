@@ -1,5 +1,9 @@
-﻿namespace Sim.AssettoCorsaCompetizione;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
+namespace Sim.AssettoCorsaCompetizione;
+
+[JsonConverter(typeof(StringEnumConverter))]
 public enum OutboundMessageTypes : byte
 {
     REGISTER_COMMAND_APPLICATION = 1,
@@ -13,6 +17,19 @@ public enum OutboundMessageTypes : byte
     SAVE_MANUAL_REPLAY_HIGHLIGHT = 60
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
+public enum InboundMessageTypes : byte
+{
+    REGISTRATION_RESULT = 1,
+    REALTIME_UPDATE = 2,
+    REALTIME_CAR_UPDATE = 3,
+    ENTRY_LIST = 4,
+    ENTRY_LIST_CAR = 6,
+    TRACK_DATA = 5,
+    BROADCASTING_EVENT = 7
+}
+
+[JsonConverter(typeof(StringEnumConverter))]
 public enum LapType
 {
     Regular,
@@ -20,6 +37,7 @@ public enum LapType
     Inlap
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum DriverCategory
 {
     Bronze,
@@ -29,6 +47,7 @@ public enum DriverCategory
     Unknown = 255
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum CarLocation
 {
     Unknown,
@@ -38,6 +57,7 @@ public enum CarLocation
     PitExit
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum SessionPhase
 {
     Unknown,
@@ -45,12 +65,13 @@ public enum SessionPhase
     PreFormation,
     FormationLap,
     PreSession,
-    Session,
+    Session, //Racing
     SessionOver,
     PostSession,
     ResultUI
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum SessionType
 {
     Practice,
@@ -63,6 +84,7 @@ public enum SessionType
     Replay
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum BroadcastingEventType
 {
     Unknown,
@@ -75,6 +97,7 @@ public enum BroadcastingEventType
     BestPersonalLap
 }
 
+[JsonConverter(typeof(StringEnumConverter))]
 public enum Nationality
 {
     Unknown,

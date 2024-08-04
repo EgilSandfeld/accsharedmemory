@@ -1,580 +1,499 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using Newtonsoft.Json;
 
-namespace AssettoCorsaSharedMemory
+namespace AssettoCorsaSharedMemory;
+
+/// <summary>
+/// IMPORTANT !!!
+/// DO NOT CHANGE THE ORDER OF THE VARIABLES, OR ADD OR REMOVE VARIABLES
+/// DOING SO WILL BREAK THE SHARED MEMORY INTERFACE WITH ACC
+/// ADDING METHODS IS OK
+/// </summary>
+[StructLayout (LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
+[Serializable]
+public struct ACCSharedMemoryGraphics
 {
-    public enum AC_PENALTY_TYPE
-    {
-        ACC_None = 0,
-        ACC_DriveThrough_Cutting = 1,
-        ACC_StopAndGo_10_Cutting = 2,
-        ACC_StopAndGo_20_Cutting = 3,
-        ACC_StopAndGo_30_Cutting = 4,
-        ACC_Disqualified_Cutting = 5,
-        ACC_RemoveBestLaptime_Cutting = 6,
-        ACC_DriveThrough_PitSpeeding = 7,
-        ACC_StopAndGo_10_PitSpeeding = 8,
-        ACC_StopAndGo_20_PitSpeeding = 9,
-        ACC_StopAndGo_30_PitSpeeding = 10,
-        ACC_Disqualified_PitSpeeding = 11,
-        ACC_RemoveBestLaptime_PitSpeeding = 12,
-        ACC_Disqualified_IgnoredMandatoryPit = 13,
-        ACC_PostRaceTime = 14,
-        ACC_Disqualified_Trolling = 15,
-        ACC_Disqualified_PitEntry = 16,
-        ACC_Disqualified_PitExit = 17,
-        ACC_Disqualified_Wrongway = 18,
-        ACC_DriveThrough_IgnoredDriverStint = 19,
-        ACC_Disqualified_IgnoredDriverStint = 20,
-        ACC_Disqualified_ExceededDriverStintLimit = 21
-    }
+    /// <summary>
+    /// Current step index
+    /// </summary>
+    public int PacketId;
 
-    public enum AC_FLAG_TYPE
-    {
-        AC_NO_FLAG = 0,
-        AC_BLUE_FLAG = 1,
-        AC_YELLOW_FLAG = 2,
-        AC_BLACK_FLAG = 3,
-        AC_WHITE_FLAG = 4,
-        AC_CHECKERED_FLAG = 5,
-        AC_PENALTY_FLAG = 6,
-        AC_GREEN_FLAG = 7,
-        AC_ORANGE_FLAG = 8
-    }
+    /// <summary>
+    /// Off, Replay, Live, Pause
+    /// </summary>
+    public AC_STATUS Status;
 
-    public enum AC_STATUS
-    {
-        AC_OFF = 0,
-        AC_REPLAY = 1,
-        AC_LIVE = 2,
-        AC_PAUSE = 3
-    }
+    /// <summary>
+    /// Unknown, Practice, qualify, race, etc.
+    /// </summary>
+    public AC_SESSION_TYPE Session;
 
-    public enum AC_SESSION_TYPE
-    {
-        AC_UNKNOWN = -1,
-        AC_PRACTICE = 0,
-        AC_QUALIFY = 1,
-        AC_RACE = 2,
-        AC_HOTLAP = 3,
-        AC_TIME_ATTACK = 4,
-        AC_DRIFT = 5,
-        AC_DRAG = 6,
-        AC_HOTSTINT = 7,
-        AC_HOTSTINTSUPERPOLE = 8
-    }
+    /// <summary>
+    /// Current player lap time in text
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string CurrentTime;
 
-    public enum AC_TRACK_GRIP_STATUS
-    {
-        AC_GREEN = 0,
-        AC_FAST = 1,
-        AC_OPTIMUM = 2,
-        AC_GREASY = 3,
-        AC_DAMP = 4,
-        AC_WET = 5,
-        AC_FLOODED = 6
-    }
+    /// <summary>
+    /// Last player lap time in text
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string LastTime;
 
-    public enum AC_RAIN_INTENSITY
-    {
-        AC_NO_RAIN = 0,
-        AC_DRIZZLE = 1,
-        AC_LIGHT_RAIN = 2,
-        AC_MEDIUM_RAIN = 3,
-        AC_HEAVY_RAIN = 4,
-        AC_THUNDERSTORM = 5
-    }
+    /// <summary>
+    /// Best player lap time in text
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string BestTime;
 
-    public class GraphicsEventArgs : EventArgs
-    {
-        public GraphicsEventArgs (ACCSharedMemoryGraphics accSharedMemoryGraphics)
-        {
-            this.ACCSharedMemoryGraphics = accSharedMemoryGraphics;
-        }
+    /// <summary>
+    /// Last split time in text
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string Split;
 
-        public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; }
-    }
+    /// <summary>
+    /// No of completed laps
+    /// </summary>
+    public int CompletedLaps;
 
-    [StructLayout (LayoutKind.Sequential, Pack = 4, CharSet = CharSet.Unicode)]
-    [Serializable]
-    public struct ACCSharedMemoryGraphics
-    {
-        /// <summary>
-        /// Current step index
-        /// </summary>
-        public int PacketId;
+    /// <summary>
+    /// Current player position
+    /// </summary>
+    public int Position;
 
-        /// <summary>
-        /// Off, Replay, Live, Pause
-        /// </summary>
-        public AC_STATUS Status;
+    /// <summary>
+    /// Current lap time in milliseconds
+    /// </summary>
+    public int iCurrentTime;
 
-        /// <summary>
-        /// Unknown, Practice, qualify, race, etc.
-        /// </summary>
-        public AC_SESSION_TYPE Session;
+    /// <summary>
+    /// Last lap time in milliseconds
+    /// </summary>
+    public int iLastTime;
 
-        /// <summary>
-        /// Current lap time in text
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String CurrentTime;
+    /// <summary>
+    /// Best lap time in milliseconds
+    /// </summary>
+    public int iBestTime;
 
-        /// <summary>
-        /// Last lap time in text
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String LastTime;
+    /// <summary>
+    /// Session time left
+    /// </summary>
+    public float SessionTimeLeft;
 
-        /// <summary>
-        /// Best lap time in text
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String BestTime;
+    /// <summary>
+    /// Distance travelled in the current stint
+    /// </summary>
+    public float DistanceTraveled;
 
-        /// <summary>
-        /// Last split time in text
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String Split;
+    /// <summary>
+    /// Car is pitting
+    /// </summary>
+    public int IsInPit;
 
-        /// <summary>
-        /// No of completed laps
-        /// </summary>
-        public int CompletedLaps;
+    /// <summary>
+    /// Current track sector
+    /// </summary>
+    public int CurrentSectorIndex;
 
-        /// <summary>
-        /// Current player position
-        /// </summary>
-        public int Position;
+    /// <summary>
+    /// Last sector time in milliseconds
+    /// </summary>
+    public int LastSectorTime;
 
-        /// <summary>
-        /// Current lap time in milliseconds
-        /// </summary>
-        public int iCurrentTime;
+    /// <summary>
+    /// Number of completed laps
+    /// </summary>
+    public int NumberOfLaps;
 
-        /// <summary>
-        /// Last lap time in milliseconds
-        /// </summary>
-        public int iLastTime;
+    /// <summary>
+    /// Tyre compound used
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
+    public string TyreCompound;
 
-        /// <summary>
-        /// Best lap time in milliseconds
-        /// </summary>
-        public int iBestTime;
+    /// <summary>
+    /// Replay multiplier
+    /// <para>
+    /// NOT AVAILABLE IN ACC
+    /// </para>
+    /// </summary>
+    public float NA_ReplayTimeMultiplier;
 
-        /// <summary>
-        /// Session time left
-        /// </summary>
-        public float SessionTimeLeft;
+    /// <summary>
+    /// Car position on track spline (0.0 start to 1.0 finish)
+    /// </summary>
+    public float NormalizedCarPosition;
 
-        /// <summary>
-        /// Distance travelled in the current stint
-        /// </summary>
-        public float DistanceTraveled;
+    /// <summary>
+    /// Number of cars on track
+    /// <para>
+    /// NOTE SHOWN IN AC DOCUMENTATION
+    /// ONLY ACC
+    /// </para>
+    /// </summary>
+    public int ActiveCars;
 
-        /// <summary>
-        /// Car is pitting
-        /// </summary>
-        public int IsInPit;
+    /// <summary>
+    /// Coordinates of cars on track, expressed in meters
+    /// <para>
+    /// AC DOCUMENTATION ONLY SHOWS ONE CAR VALUE
+    /// ACC SHOWS 60 CAR VALUES
+    /// </para>
+    /// </summary>
+    [MarshalAs (UnmanagedType.ByValArray, SizeConst = 60)]
+    public Coordinates[] CarCoordinates;
 
-        /// <summary>
-        /// Current track sector
-        /// </summary>
-        public int CurrentSectorIndex;
+    /// <summary>
+    /// Car IDs of cars on track
+    /// <para>
+    /// NOTE SHOWN IN AC DOCUMENTATION
+    /// ONLY ACC
+    /// </para>
+    /// </summary>
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 60)]
+    public int[] CarID;
 
-        /// <summary>
-        /// Last sector time in milliseconds
-        /// </summary>
-        public int LastSectorTime;
+    /// <summary>
+    /// Player Car ID
+    /// <para>
+    /// NOTE SHOWN IN AC DOCUMENTATION
+    /// ONLY ACC
+    /// </para>
+    /// </summary>
+    public int PlayerCarID;
 
-        /// <summary>
-        /// Number of completed laps
-        /// </summary>
-        public int NumberOfLaps;
+    /// <summary>
+    /// Penalty time to wait
+    /// </summary>
+    public float PenaltyTime;
 
-        /// <summary>
-        /// Tyre compound used
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValTStr, SizeConst = 33)]
-        public string TyreCompound;
+    /// <summary>
+    /// Current flag type
+    /// </summary>
+    public AC_FLAG_TYPE Flag;
 
-        ///// <summary>
-        ///// Replay multiplier
-        ///// <para>
-        ///// NOT AVAILABLE IN ACC
-        ///// </para>
-        ///// </summary>
-        //public float ReplayTimeMultiplier;
+    /// <summary>
+    /// Penalty type and reason
+    /// <para>
+    /// NOTE SHOWN IN AC DOCUMENTATION
+    /// ONLY ACC
+    /// </para>
+    /// </summary>
+    public AC_PENALTY_TYPE Penalty;
 
-        /// <summary>
-        /// Car position on track spline (0.0 start to 1.0 finish)
-        /// </summary>
-        public float NormalizedCarPosition;
+    /// <summary>
+    /// Ideal line on
+    /// </summary>
+    public int IdealLineOn;
 
-        /// <summary>
-        /// Number of cars on track
-        /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
-        /// ONLY ACC
-        /// </para>
-        /// </summary>
-        public int ActiveCars;
+    // since 1.5
 
-        /// <summary>
-        /// Coordinates of cars on track, expressed in meters
-        /// <para>
-        /// AC DOCUMENTATION ONLY SHOWS ONE CAR VALUE
-        /// ACC SHOWS 60 CAR VALUES
-        /// </para>
-        /// </summary>
-        [MarshalAs (UnmanagedType.ByValArray, SizeConst = 60)]
-        public Coordinates[] CarCoordinates;
+    /// <summary>
+    /// Car is in pit lane
+    /// </summary>
+    public int IsInPitLane;
 
-        /// <summary>
-        /// Car IDs of cars on track
-        /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
-        /// ONLY ACC
-        /// </para>
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 60)]
-        public int[] CarID;
+    /// <summary>
+    /// Ideal line friction coefficient
+    /// </summary>
+    public float SurfaceGrip;
 
-        /// <summary>
-        /// Player Car ID
-        /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
-        /// ONLY ACC
-        /// </para>
-        /// </summary>
-        public int PlayerCarID;
+    // since 1.13
 
-        /// <summary>
-        /// Penalty time to wait
-        /// </summary>
-        public float PenaltyTime;
+    /// <summary>
+    /// Mandatory pit is completed
+    /// </summary>
+    public int MandatoryPitDone;
 
-        /// <summary>
-        /// Current flag type
-        /// </summary>
-        public AC_FLAG_TYPE Flag;
+    // since ???
 
-        /// <summary>
-        /// Penalty type and reason
-        /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
-        /// ONLY ACC
-        /// </para>
-        /// </summary>
-        public AC_PENALTY_TYPE Penalty;
+    /// <summary>
+    /// Wind speed in m/s
+    /// </summary>
+    public float WindSpeed;
 
-        /// <summary>
-        /// Ideal line on
-        /// </summary>
-        public int IdealLineOn;
+    /// <summary>
+    /// Wind direction in radians
+    /// </summary>
+    public float WindDirection;
 
-        // since 1.5
+    /// <summary>
+    /// Car is working on setup
+    /// </summary>
+    public int IsSetupMenuVisible;
 
-        /// <summary>
-        /// Car is in pit lane
-        /// </summary>
-        public int IsInPitLane;
+    /// <summary>
+    /// Current car main display index
+    /// see ACCSharedMemoryDocumentation Appendix 1
+    /// </summary>
+    public int MainDisplayIndex;
 
-        /// <summary>
-        /// Ideal line friction coefficient
-        /// </summary>
-        public float SurfaceGrip;
+    /// <summary>
+    /// Current car secondary display index
+    /// see ACCSharedMemoryDocumentation Appendix 1
+    /// </summary>
+    public int SecondaryDisplayIndex;
 
-        // since 1.13
+    /// <summary>
+    /// Traction control level
+    /// </summary>
+    public int TC;
 
-        /// <summary>
-        /// Mandatory pit is completed
-        /// </summary>
-        public int MandatoryPitDone;
+    /// <summary>
+    /// Traction control cut level
+    /// </summary>
+    public int TCCut;
 
-        // since ???
+    /// <summary>
+    /// Current engine map
+    /// </summary>
+    public int EngineMap;
 
-        /// <summary>
-        /// Wind speed in m/s
-        /// </summary>
-        public float WindSpeed;
+    /// <summary>
+    /// ABS level
+    /// </summary>
+    public int ABS;
 
-        /// <summary>
-        /// Wind direction in radians
-        /// </summary>
-        public float WindDirection;
+    /// <summary>
+    /// Average fuel consumed per lap in liters
+    /// </summary>
+    public float FuelXLap;
 
-        /// <summary>
-        /// Car is working on setup
-        /// </summary>
-        public int IsSetupMenuVisible;
+    /// <summary>
+    /// Rain lights on
+    /// </summary>
+    public int RainLights;
 
-        /// <summary>
-        /// Current car main display index
-        /// see ACCSharedMemoryDocumentation Appendix 1
-        /// </summary>
-        public int MainDisplayIndex;
+    /// <summary>
+    /// Flashing lights on
+    /// </summary>
+    public int FlashingLights;
 
-        /// <summary>
-        /// Current car secondary display index
-        /// see ACCSharedMemoryDocumentation Appendix 1
-        /// </summary>
-        public int SecondaryDisplayIndex;
+    /// <summary>
+    /// Current lights stage
+    /// </summary>
+    public int LightsStage;
 
-        /// <summary>
-        /// Traction control level
-        /// </summary>
-        public int TC;
+    /// <summary>
+    /// Exhaust temperature
+    /// </summary>
+    public float ExhaustTemperature;
 
-        /// <summary>
-        /// Traction control cut level
-        /// </summary>
-        public int TCCut;
+    /// <summary>
+    /// Current wiper stage
+    /// </summary>
+    public int WiperLevel;
 
-        /// <summary>
-        /// Current engine map
-        /// </summary>
-        public int EngineMap;
+    /// <summary>
+    /// Time the driver is allowed to drive/race (ms)
+    /// </summary>
+    public int DriverStintTotalTimeLeft;
 
-        /// <summary>
-        /// ABS level
-        /// </summary>
-        public int ABS;
+    /// <summary>
+    /// Time the driver is allowed to drive/stint (ms)
+    /// </summary>
+    public int DriverStintTimeLeft;
 
-        /// <summary>
-        /// Average fuel consumed per lap in liters
-        /// </summary>
-        public float FuelXLap;
+    /// <summary>
+    /// Are rain tyres equipped
+    /// </summary>
+    public int RainTyres;
 
-        /// <summary>
-        /// Rain lights on
-        /// </summary>
-        public int RainLights;
+    /// <summary>
+    /// No description available
+    /// </summary>
+    public int SessionIndex;
 
-        /// <summary>
-        /// Flashing lights on
-        /// </summary>
-        public int FlashingLights;
+    /// <summary>
+    /// Used fuel since last time refueling
+    /// </summary>
+    public float UsedFuel;
 
-        /// <summary>
-        /// Current lights stage
-        /// </summary>
-        public int LightsStage;
-
-        /// <summary>
-        /// Exhaust temperature
-        /// </summary>
-        public float ExhaustTemperature;
-
-        /// <summary>
-        /// Current wiper stage
-        /// </summary>
-        public int WiperLevel;
-
-        /// <summary>
-        /// Time the driver is allowed to drive/race (ms)
-        /// </summary>
-        public int DriverStintTotalTimeLeft;
-
-        /// <summary>
-        /// Time the driver is allowed to drive/stint (ms)
-        /// </summary>
-        public int DriverStintTimeLeft;
-
-        /// <summary>
-        /// Are rain tyres equipped
-        /// </summary>
-        public int RainTyres;
-
-        /// <summary>
-        /// No description available
-        /// </summary>
-        public int SessionIndex;
-
-        /// <summary>
-        /// Used fuel since last time refueling
-        /// </summary>
-        public float UsedFuel;
-
-        /// <summary>
-        /// Delta time in text
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String DeltaLapTime;
+    /// <summary>
+    /// Delta time in text
+    /// </summary>
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string DeltaLapTime;
         
-        /// <summary>
-        /// Delta time in milliseconds
-        /// </summary>
-        public int IDeltaLapTime;
+    /// <summary>
+    /// Delta time in milliseconds
+    /// </summary>
+    public int IDeltaLapTime;
         
-        /// <summary>
-        /// Estimated lap time in text
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
-        public String EstimatedLapTime;
+    /// <summary>
+    /// Estimated lap time in text
+    /// </summary>
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 15)]
+    public string EstimatedLapTime;
 
-        /// <summary>
-        /// Estimated lap time in milliseconds
-        /// </summary>
-        public int iEstimatedLapTime;
+    /// <summary>
+    /// Estimated lap time in milliseconds
+    /// </summary>
+    public int iEstimatedLapTime;
         
-        /// <summary>
-        /// Delta positive (1) or negative (0)
-        /// </summary>
-        public int IsDeltaPositive;
+    /// <summary>
+    /// Delta positive (1) or negative (0)
+    /// </summary>
+    public int IsDeltaPositive;
 
-        /// <summary>
-        /// Last split time in milliseconds
-        /// </summary>
-        public int iSplit;
+    /// <summary>
+    /// Last split time in milliseconds
+    /// </summary>
+    public int iSplit;
 
-        /// <summary>
-        /// Check if Lap is valid for timing
-        /// </summary>
-        public int IsValidLap;
+    /// <summary>
+    /// Check if Lap is valid for timing
+    /// </summary>
+    public int IsValidLap;
 
-        /// <summary>
-        /// Laps possible with current fuel level
-        /// </summary>
-        public float FuelEstimatedLaps;
+    /// <summary>
+    /// Laps possible with current fuel level
+    /// </summary>
+    public float FuelEstimatedLaps;
         
-        /// <summary>
-        /// Status of track
-        /// </summary>
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 33)]
-        public String TrackStatus;
+    /// <summary>
+    /// Status of track
+    /// </summary>
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 33)]
+    public string TrackStatus;
 
-        /// <summary>
-        /// Mandatory pitstops the player still has to do
-        /// </summary>
-        public int MissingMandatoryPits;
+    /// <summary>
+    /// Mandatory pitstops the player still has to do
+    /// </summary>
+    public int MissingMandatoryPits;
 
-        /// <summary>
-        /// Time of day in seconds
-        /// </summary>
-        public float Clock;
+    /// <summary>
+    /// Time of day in seconds
+    /// </summary>
+    public float Clock;
 
-        /// <summary>
-        /// Is Blinker left on
-        /// </summary>
-        public int DirectionLightsLeft;
+    /// <summary>
+    /// Is Blinker left on
+    /// </summary>
+    public int DirectionLightsLeft;
 
-        /// <summary>
-        /// Is Blinker right on
-        /// </summary>
-        public int DirectionLightsRight;
+    /// <summary>
+    /// Is Blinker right on
+    /// </summary>
+    public int DirectionLightsRight;
 
-        /// <summary>
-        /// Yellow Flag is out?
-        /// </summary>
-        public int GlobalYellow;
+    /// <summary>
+    /// Yellow Flag is out?
+    /// </summary>
+    public int GlobalYellow;
 
-        /// <summary>
-        /// Yellow Flag in Sector 1 is out?
-        /// </summary>
-        public int GlobalYellow1;
+    /// <summary>
+    /// Yellow Flag in Sector 1 is out?
+    /// </summary>
+    public int GlobalYellow1;
 
-        /// <summary>
-        /// Yellow Flag in Sector 2 is out?
-        /// </summary>
-        public int GlobalYellow2;
+    /// <summary>
+    /// Yellow Flag in Sector 2 is out?
+    /// </summary>
+    public int GlobalYellow2;
 
-        /// <summary>
-        /// Yellow Flag in Sector 3 is out?
-        /// </summary>
-        public int GlobalYellow3;
+    /// <summary>
+    /// Yellow Flag in Sector 3 is out?
+    /// </summary>
+    public int GlobalYellow3;
 
-        /// <summary>
-        /// White Flag is out?
-        /// </summary>
-        public int GlobalWhite;
+    /// <summary>
+    /// White Flag is out?
+    /// </summary>
+    public int GlobalWhite;
 
-        /// <summary>
-        /// Green Flag is out?
-        /// </summary>
-        public int GlobalGreen;
+    /// <summary>
+    /// Green Flag is out?
+    /// </summary>
+    public int GlobalGreen;
 
-        /// <summary>
-        /// Checkered Flag is out?
-        /// </summary>
-        public int GlobalChequered;
+    /// <summary>
+    /// Checkered Flag is out?
+    /// </summary>
+    public int GlobalChequered;
 
-        /// <summary>
-        /// Red Flag is out?
-        /// </summary>
-        public int GlobalRed;
+    /// <summary>
+    /// Red Flag is out?
+    /// </summary>
+    public int GlobalRed;
 
-        /// <summary>
-        /// # of tyre set on the MFD
-        /// </summary>
-        public int MFDTyreSet;
+    /// <summary>
+    /// # of tyre set on the MFD
+    /// </summary>
+    public int MFDTyreSet;
 
-        /// <summary>
-        /// How much fuel to add on the MFD
-        /// </summary>
-        public float MFDFuelToAdd;
+    /// <summary>
+    /// How much fuel to add on the MFD
+    /// </summary>
+    public float MFDFuelToAdd;
 
-        /// <summary>
-        /// Tyre pressure left front on the MFD
-        /// </summary>
-        public float MFDTyrePressureLF;
+    /// <summary>
+    /// Tyre pressure left front on the MFD
+    /// </summary>
+    public float MFDTyrePressureLF;
 
-        /// <summary>
-        /// Tyre pressure right front on the MFD
-        /// </summary>
-        public float MFDTyrePressureRF;
+    /// <summary>
+    /// Tyre pressure right front on the MFD
+    /// </summary>
+    public float MFDTyrePressureRF;
 
-        /// <summary>
-        /// Tyre pressure left rear on the MFD
-        /// </summary>
-        public float MFDTyrePressureLR;
+    /// <summary>
+    /// Tyre pressure left rear on the MFD
+    /// </summary>
+    public float MFDTyrePressureLR;
 
-        /// <summary>
-        /// Tyre pressure right rear on the MFD
-        /// </summary>
-        public float MFDTyrePressureRR;
+    /// <summary>
+    /// Tyre pressure right rear on the MFD
+    /// </summary>
+    public float MFDTyrePressureRR;
 
-        /// <summary>
-        /// Green, Fast, Optimum, Greasy, Damp, Wet, Flooded
-        /// </summary>
-        public AC_TRACK_GRIP_STATUS TrackGripStatus;
+    /// <summary>
+    /// Green, Fast, Optimum, Greasy, Damp, Wet, Flooded
+    /// </summary>
+    public AC_TRACK_GRIP_STATUS TrackGripStatus;
 
-        /// <summary>
-        /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
-        /// </summary>
-        public AC_RAIN_INTENSITY RainIntensity;
+    /// <summary>
+    /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
+    /// </summary>
+    public AC_RAIN_INTENSITY RainIntensity;
 
-        /// <summary>
-        /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
-        /// </summary>
-        public AC_RAIN_INTENSITY RainIntensityIn10Min;
+    /// <summary>
+    /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
+    /// </summary>
+    public AC_RAIN_INTENSITY RainIntensityIn10Min;
 
-        /// <summary>
-        /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
-        /// </summary>
-        public AC_RAIN_INTENSITY RainIntensityIn30Min;
+    /// <summary>
+    /// No Rain, Drizzle, Light/Med/Heady Rain, Thunderstorm
+    /// </summary>
+    public AC_RAIN_INTENSITY RainIntensityIn30Min;
 
-        /// <summary>
-        /// Tyre Set currently in use
-        /// 1-indexed
-        /// Equals the value in pit menu
-        /// </summary>
-        public int CurrentTyreSet;
+    /// <summary>
+    /// Tyre Set currently in use
+    /// 1-indexed
+    /// Equals the value in pit menu
+    /// </summary>
+    public int CurrentTyreSet;
 
-        /// <summary>
-        /// Next Tyre set per strategy
-        /// </summary>
-        public int StrategyTyreSet;
+    /// <summary>
+    /// Next Tyre set per strategy
+    /// </summary>
+    public int StrategyTyreSet;
 
-        /// <summary>
-        /// Distance in ms to car in front
-        /// </summary>
-        public int GapAhead;
+    /// <summary>
+    /// Distance in ms to car in front
+    /// </summary>
+    public int GapAhead;
 
-        /// <summary>
-        /// Distance in ms to car behind
-        /// </summary>
-        public int GapBehind;
+    /// <summary>
+    /// Distance in ms to car behind
+    /// </summary>
+    public int GapBehind;
+
+    public override string ToString()
+    {
+        return JsonConvert.SerializeObject(this);
     }
 }

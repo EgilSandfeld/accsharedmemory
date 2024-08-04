@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,10 +10,11 @@ using AssettoCorsaSharedMemory;
 
 namespace Sim.AssettoCorsaCompetizione;
 
-public class AccClient
+public class AccClient : IDisposable
 {
     public Action<string> Logger { get; }
-    
+    //public bool IsAlive => _thread != null && _thread.IsAlive;
+
     public string CommandPassword { get; set; }
     public int MsRealtimeUpdateInterval { get; set; }
     public string ConnectionPassword { get; set; }
@@ -23,22 +22,24 @@ public class AccClient
     public string IpAddress { get; set; }
     public int Port { get; set; }
 
-    private static readonly object udpLock = new ();
+    private static readonly object UdpLock = new ();
+    private DateTime _clientStartTime;
     
-    private IPEndPoint _server;
+    //private IPEndPoint _server;
     //private string _displayName;
     //private int _updateIntervalMs;
     private UdpClient _udpClient;
     private UDPState _connectionState = UDPState.Disconnected;
-    private int _broadcastingProtocolVersion = 4;
+    private const int BroadcastingProtocolVersion = 4;
     private int? _connectionId;
-    private bool _writable;
-    private Dictionary<int, int> _cars = new ();
-    private Dictionary<byte, Action> _getMethods;
-    private bool _stopSignal;
-    private Thread _thread;
-    private ThreadedSocketReader _reader;
+    //private bool _writable;
+    private readonly Dictionary<int, int> _entryListCars = new ();
+    private readonly Dictionary<InboundMessageTypes, Action<BinaryReader>> _getMethods;
+    //private bool _stopSignal;
+    //private Thread _thread;
+    //private ThreadedSocketReader _reader;
     private bool _udpAlive;
+    private bool _requestedEntryList;
 
     public event EventHandler<UDPState> OnConnectionStateChange;
     public event EventHandler<TrackData> OnTrackDataUpdate;
@@ -48,20 +49,20 @@ public class AccClient
     public event EventHandler<BroadcastingEvent> OnBroadcastingEvent;
 
     public UDPState ConnectionState => _connectionState;
-    public bool Writable => _writable;
 
     public AccClient(Action<string> logger)
     {
         Logger = logger;
-        _getMethods = new Dictionary<byte, Action>
+        _clientStartTime = DateTime.Now;
+        _getMethods = new Dictionary<InboundMessageTypes, Action<BinaryReader>>
         {
-            { 1, GetRegistrationResult },
-            { 2, GetRealtimeUpdate },
-            { 3, GetRealtimeCarUpdate },
-            { 4, GetEntryList },
-            { 5, GetTrackData },
-            { 6, GetEntryListCar },
-            { 7, GetBroadcastingEvent }
+            { InboundMessageTypes.REGISTRATION_RESULT, GetRegistrationResult },
+            { InboundMessageTypes.REALTIME_UPDATE, GetRealtimeUpdate },
+            { InboundMessageTypes.REALTIME_CAR_UPDATE, GetRealtimeCarUpdate },
+            { InboundMessageTypes.ENTRY_LIST, GetEntryList },
+            { InboundMessageTypes.TRACK_DATA, GetTrackData },
+            { InboundMessageTypes.ENTRY_LIST_CAR, GetEntryListCar },
+            { InboundMessageTypes.BROADCASTING_EVENT, GetBroadcastingEvent }
         };
     }
 
@@ -70,273 +71,351 @@ public class AccClient
         if (state != _connectionState)
         {
             _connectionState = state;
+            _requestedEntryList = false;
             OnConnectionStateChange?.Invoke(this, _connectionState);
         }
     }
-
+    
     private void Send(params object[] args)
     {
-        //if (!IsAlive)
-        //    throw new InvalidOperationException("Must be started");
-
-        var buffer = new List<byte>();
-        foreach (var arg in args)
-        {
-            if (arg is byte b)
-                buffer.Add(b);
-            else if (arg is int i)
-                buffer.AddRange(BitConverter.GetBytes(i));
-            else if (arg is float f)
-                buffer.AddRange(BitConverter.GetBytes(f));
-            else if (arg is bool bl)
-                buffer.Add(bl ? (byte)1 : (byte)0);
-            else if (arg is string s)
-            {
-                var encoded = Encoding.UTF8.GetBytes(s);
-                buffer.AddRange(BitConverter.GetBytes((ushort)encoded.Length));
-                buffer.AddRange(encoded);
-            }
-        }
-
-        _udpClient.Send(buffer.ToArray(), buffer.Count);
-    }
-
-    // private T Get<T>()
-    // {
-    //     var data = _reader.Read(sizeof(T));
-    //     return BitConverter.ToT(data, 0);
-    // }
-    private T Get<T>() where T : struct
-    {
-        var size = Marshal.SizeOf(typeof(T));
-        var data = _reader.Read(size);
-        var handle = GCHandle.Alloc(data, GCHandleType.Pinned);
         try
         {
-            return (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+            var buffer = new List<byte>();
+            foreach (var arg in args)
+            {
+                if (arg is byte b)
+                    buffer.Add(b);
+                else if (arg is int i)
+                    buffer.AddRange(BitConverter.GetBytes(i));
+                else if (arg is float f)
+                    buffer.AddRange(BitConverter.GetBytes(f));
+                else if (arg is bool bl)
+                    buffer.Add(bl ? (byte)1 : (byte)0);
+                else if (arg is string s)
+                {
+                    var encoded = Encoding.UTF8.GetBytes(s);
+                    buffer.AddRange(BitConverter.GetBytes((ushort)encoded.Length));
+                    buffer.AddRange(encoded);
+                }
+            }
+
+            _udpClient.Send(buffer.ToArray(), buffer.Count);
         }
-        finally
+        catch (Exception e)
         {
-            handle.Free();
+            Logger?.Invoke(e.Message);
         }
     }
 
-    private string GetString()
+    private static string ReadString(BinaryReader br)
     {
-        var length = Get<ushort>();
-        if (length > 0)
-        {
-            var data = _reader.Read(length);
-            return Encoding.UTF8.GetString(data);
-        }
-
-        return string.Empty;
+        var length = br.ReadUInt16();
+        var bytes = br.ReadBytes(length);
+        return Encoding.UTF8.GetString(bytes);
     }
-
-    private void GetRegistrationResult()
+    
+    private void GetRegistrationResult(BinaryReader br)
     {
-        _connectionId = Get<int>();
-        _writable = Get<bool>();
-        var errorMessage = GetString();
-        if (!_writable)
+        try
         {
-            Stop($"rejected ({errorMessage})");
-        }
+            _connectionId = br.ReadInt32();
+            var connectionSuccess = br.ReadByte() > 0;
+            var isReadonly = br.ReadByte() == 0;
+            var errMsg = ReadString(br);
 
-        UpdateConnectionState(UDPState.Connected);
-        RequestEntryList();
-        RequestTrackData();
+            Logger?.Invoke("REGISTRATION_RESULT: " + connectionSuccess + " : " + errMsg + " : " + DateTime.Now.ToString("HH:mm:ss.fff"));
+
+            if (isReadonly)
+            {
+                Stop($"GetRegistrationResult: Is read only. Rejected: ({errMsg})");
+            }
+
+            UpdateConnectionState(UDPState.Connected);
+            RequestEntryList();
+            RequestTrackData();
+        }
+        catch (Exception e)
+        {
+            Logger?.Invoke(e.Message);
+            throw;
+        }
     }
 
-    private void GetRealtimeUpdate()
+    private void GetRealtimeUpdate(BinaryReader br)
     {
-        var update = new RealtimeUpdate
+        try
         {
-            EventIndex = Get<ushort>(),
-            SessionIndex = Get<ushort>(),
-            SessionType = (SessionType)Get<byte>(),
-            SessionPhase = (SessionPhase)Get<byte>(),
-            SessionTimeMs = Get<float>(),
-            SessionEndTimeMs = Get<float>(),
-            FocusedCarIndex = Get<int>(),
-            ActiveCameraSet = GetString(),
-            ActiveCamera = GetString(),
-            CurrentHudPage = GetString(),
-            IsReplayPlaying = Get<bool>()
-        };
+            var update = new RealtimeUpdate
+            {
+                EventIndex = br.ReadUInt16(),
+                SessionIndex = br.ReadUInt16(),
+                SessionType = (SessionType)br.ReadByte(),
+                SessionPhase = (SessionPhase)br.ReadByte(),
+                SessionTimeMs = br.ReadSingle(),
+                SessionEndTimeMs = br.ReadSingle(),
+                FocusedCarIndex = br.ReadInt32(),
+                ActiveCameraSet = ReadString(br),
+                ActiveCamera = ReadString(br),
+                CurrentHudPage = ReadString(br),
+                IsReplayPlaying = br.ReadBoolean()
+            };
 
-        if (update.IsReplayPlaying)
-        {
-            update.ReplaySessionTime = Get<float>();
-            update.ReplayRemainingTime = Get<float>();
+            if (update.IsReplayPlaying)
+            {
+                update.ReplaySessionTime = br.ReadSingle();
+                update.ReplayRemainingTime = br.ReadSingle();
+            }
+
+            update.TimeOfDaySeconds = br.ReadSingle();
+            update.AmbientTemp = br.ReadByte();
+            update.TrackTemp = br.ReadByte();
+            update.Clouds = br.ReadByte() / 10f;
+            update.RainLevel = br.ReadByte() / 10f;
+            update.Wetness = br.ReadByte() / 10f;
+            update.BestSessionLap = GetLap(br);
+
+            OnRealtimeUpdate?.Invoke(this, update);
         }
-
-        update.TimeOfDayMs = Get<float>();
-        update.AmbientTemp = Get<byte>();
-        update.TrackTemp = Get<byte>();
-        update.Clouds = Get<byte>() / 10f;
-        update.RainLevel = Get<byte>() / 10f;
-        update.Wetness = Get<byte>() / 10f;
-        update.BestSessionLap = GetLap();
-
-        OnRealtimeUpdate?.Invoke(this, update);
+        catch (Exception e)
+        {
+            Logger?.Invoke(e.Message);
+            throw;
+        }
     }
 
-    private Lap GetLap()
+    private Lap GetLap(BinaryReader br)
     {
         var lap = new Lap
         {
-            LapTimeMs = Get<int>(),
-            CarIndex = Get<ushort>(),
-            DriverIndex = Get<ushort>(),
+            LapTimeMs = br.ReadInt32(),
+            CarIndex = br.ReadUInt16(),
+            DriverIndex = br.ReadUInt16(),
             Splits = new List<int>()
         };
 
-        var splitCount = Get<byte>();
+        var splitCount = br.ReadByte();
         for (int i = 0; i < splitCount; i++)
-        {
-            lap.Splits.Add(Get<int>());
-        }
+            lap.Splits.Add(br.ReadInt32());
 
-        lap.IsInvalid = Get<bool>();
-        lap.IsValidForBest = Get<bool>();
-        lap.IsOutlap = Get<bool>();
-        lap.IsInlap = Get<bool>();
+        lap.IsInvalid = br.ReadBoolean();
+        lap.IsValidForBest = br.ReadBoolean();
+        lap.IsOutlap = br.ReadBoolean();
+        lap.IsInlap = br.ReadBoolean();
         lap.Type = lap.IsOutlap ? LapType.Outlap : (lap.IsInlap ? LapType.Inlap : LapType.Regular);
+
+        while (lap.Splits.Count < 3)
+            lap.Splits.Add(-1);
+
+        for (int i = 0; i < lap.Splits.Count; i++)
+            if (lap.Splits[i] == int.MaxValue)
+                lap.Splits[i] = -1;
+
+        if (lap.LapTimeMs == int.MaxValue)
+            lap.LapTimeMs = -1;
 
         return lap;
     }
 
-    private void GetRealtimeCarUpdate()
+    private void GetRealtimeCarUpdate(BinaryReader br)
     {
-        var update = new RealtimeCarUpdate
+        try
         {
-            CarIndex = Get<ushort>(),
-            DriverIndex = Get<ushort>(),
-            DriverCount = Get<byte>(),
-            Gear = Get<byte>() - 2, //Offset by -2 to get reverse gear as -1 and neutral as 0
-            WorldPosX = Get<float>(),
-            WorldPosY = Get<float>(),
-            Yaw = Get<float>(),
-            Location = (CarLocation)Get<byte>(),
-            Kmh = Get<ushort>(),
-            Position = Get<ushort>(),
-#pragma warning disable CS0612 // Type or member is obsolete
-            CupPosition = Get<ushort>(),
-#pragma warning restore CS0612 // Type or member is obsolete
-            TrackPosition = Get<ushort>(),
-            SplinePosition = Get<float>(),
-            Laps = Get<ushort>(),
-            Delta = Get<int>(),
-            BestSessionLap = GetLap(),
-            LastLap = GetLap(),
-            CurrentLap = GetLap()
-        };
+            var update = new RealtimeCarUpdate
+            {
+                CarIndex = br.ReadUInt16(),
+                DriverIndex = br.ReadUInt16(),
+                DriverCount = br.ReadByte(),
+                Gear = br.ReadByte() - 2,
+                WorldPosX = br.ReadSingle(),
+                WorldPosY = br.ReadSingle(),
+                Yaw = br.ReadSingle(),
+                Location = (CarLocation)br.ReadByte(),
+                Kmh = br.ReadUInt16(),
+                Position = br.ReadUInt16(),
+#pragma warning disable CS0618 // Type or member is obsolete
+                CupPosition = br.ReadUInt16(),
+#pragma warning restore CS0618 // Type or member is obsolete
+                TrackPosition = br.ReadUInt16(),
+                SplinePosition = br.ReadSingle(),
+                Laps = br.ReadUInt16(),
+                Delta = br.ReadInt32(),
+                BestSessionLap = GetLap(br),
+                LastLap = GetLap(br),
+                CurrentLap = GetLap(br)
+            };
 
-        if (_cars.ContainsKey(update.CarIndex) && _cars[update.CarIndex] == update.DriverCount)
-        {
             OnRealtimeCarUpdate?.Invoke(this, update);
-        }
-        else
-        {
+
+            //When the car index exists, and the number of drivers in this car matches the expected number of drivers
+            if (_entryListCars.ContainsKey(update.CarIndex) && _entryListCars[update.CarIndex] == update.DriverCount)
+            {
+                return;
+            }
+
             RequestEntryList();
         }
-    }
-
-    private void GetEntryList()
-    {
-        var connectionId = Get<int>();
-        var carCount = Get<ushort>();
-        _cars.Clear();
-        for (int i = 0; i < carCount; i++)
+        catch (Exception e)
         {
-            var carIndex = Get<ushort>();
-            _cars[carIndex] = _cars.ContainsKey(carIndex) ? _cars[carIndex] : -1;
+            Logger?.Invoke(e.Message);
+            throw;
         }
     }
 
-    private void GetEntryListCar()
+    private void GetEntryList(BinaryReader br)
     {
-        var car = new EntryListCar
+        try
         {
-            CarIndex = Get<ushort>(),
-            ModelType = (AssettoCorsa.CarModel)Get<byte>(),
-            TeamName = GetString(),
-            RaceNumber = Get<int>(),
-            CupCategory = Get<byte>(),
-            CurrentDriverIndex = Get<byte>(),
-            Nationality = (Nationality)Get<ushort>(),
-            Drivers = new List<Driver>()
-        };
-
-        var driverCount = Get<byte>();
-        for (int i = 0; i < driverCount; i++)
-        {
-            car.Drivers.Add(new Driver
+            var carCount = br.ReadUInt16();
+            var changes = false;
+            for (int i = 0; i < carCount; i++)
             {
-                FirstName = GetString(),
-                LastName = GetString(),
-                ShortName = GetString(),
-                Category = (DriverCategory)Get<byte>(),
-                Nationality = (Nationality)Get<ushort>()
-            });
-        }
+                var carIndex = br.ReadUInt16();
+                if (_entryListCars.ContainsKey(carIndex))
+                    continue;
 
-        _cars[car.CarIndex] = car.Drivers.Count;
-        OnEntryListCarUpdate?.Invoke(this, car);
+                _entryListCars.Add(carIndex, 1);
+                changes = true;
+            }
+
+            if (changes)
+                Logger?.Invoke($"ENTRY_LIST: {DateTime.UtcNow:HH:mm:ss.fff}");
+            
+            _requestedEntryList = false;
+        }
+        catch (Exception e)
+        {
+            Logger?.Invoke(e.Message);
+            throw;
+        }
     }
 
-    private void GetTrackData()
+    private void GetEntryListCar(BinaryReader br)
     {
-        var trackData = new TrackData
+        try
         {
-            ConnectionId = Get<int>(),
-            TrackName = GetString(),
-            TrackId = Get<int>(),
-            TrackMeters = Get<int>(),
-            CameraSets = new Dictionary<string, List<string>>(),
-            HudPages = new List<string>()
-        };
-
-        var cameraSetCount = Get<byte>();
-        for (int i = 0; i < cameraSetCount; i++)
-        {
-            var cameraSetName = GetString();
-            trackData.CameraSets[cameraSetName] = new List<string>();
-            var cameraCount = Get<byte>();
-            for (int j = 0; j < cameraCount; j++)
+            var car = new EntryListCar
             {
-                trackData.CameraSets[cameraSetName].Add(GetString());
+                CarIndex = br.ReadUInt16(),
+                ModelType = (AssettoCorsa.CarModel)br.ReadByte(),
+                TeamName = ReadString(br),
+                RaceNumber = br.ReadInt32(),
+                CupCategory = br.ReadByte(),
+                CurrentDriverIndex = br.ReadByte(),
+                Nationality = (Nationality)br.ReadInt16(),
+                Drivers = new List<Driver>()
+            };
+
+            var driverCount = br.ReadByte();
+            for (int i = 0; i < driverCount; i++)
+            {
+                car.Drivers.Add(new Driver
+                {
+                    FirstName = ReadString(br),
+                    LastName = ReadString(br),
+                    ShortName = ReadString(br),
+                    Category = (DriverCategory)br.ReadByte(),
+                    Nationality = (Nationality)br.ReadInt16()
+                });
+            }
+
+            if (!_entryListCars.ContainsKey(car.CarIndex))
+            {
+                if (SecondsSinceStart() > 30)
+                    Logger?.Invoke($"New car index entry: {car.CarIndex} with {car.Drivers.Count} drivers");
+
+                _entryListCars[car.CarIndex] = car.Drivers.Count;
+                OnEntryListCarUpdate?.Invoke(this, car);
+                return;
+            }
+
+            if (_entryListCars[car.CarIndex] != car.Drivers.Count)
+            {
+                if (SecondsSinceStart() > 30)
+                    Logger?.Invoke($"{_entryListCars[car.CarIndex]} -> {car.Drivers.Count} drivers in car index: {car.CarIndex}");
+
+                _entryListCars[car.CarIndex] = car.Drivers.Count;
+                OnEntryListCarUpdate?.Invoke(this, car);
             }
         }
-
-        var hudPageCount = Get<byte>();
-        for (int i = 0; i < hudPageCount; i++)
+        catch (Exception e)
         {
-            trackData.HudPages.Add(GetString());
+            Logger?.Invoke(e.Message);
+            throw;
         }
-
-        OnTrackDataUpdate?.Invoke(this, trackData);
     }
 
-    private void GetBroadcastingEvent()
+    private double SecondsSinceStart()
     {
-        var broadcastingEvent = new BroadcastingEvent
-        {
-            Type = (BroadcastingEventType)Get<byte>(),
-            Message = GetString(),
-            TimeMs = Get<int>(),
-            CarIndex = Get<int>()
-        };
+        return DateTime.Now.Subtract(_clientStartTime).TotalSeconds;
+    }
 
-        OnBroadcastingEvent?.Invoke(this, broadcastingEvent);
+    private void GetTrackData(BinaryReader br)
+    {
+        try
+        {
+            var trackData = new TrackData
+            {
+                ConnectionId = br.ReadInt32(),
+                TrackName = ReadString(br),
+                TrackId = br.ReadInt32(),
+                TrackMeters = br.ReadInt32(),
+                CameraSets = new Dictionary<string, List<string>>(),
+                HudPages = new List<string>()
+            };
+
+            trackData.TrackMeters = trackData.TrackMeters > 0 ? trackData.TrackMeters : -1;
+
+            var cameraSetCount = br.ReadByte();
+            for (int i = 0; i < cameraSetCount; i++)
+            {
+                var cameraSetName = ReadString(br);
+                trackData.CameraSets[cameraSetName] = new List<string>();
+                var cameraCount = br.ReadByte();
+                for (int j = 0; j < cameraCount; j++)
+                    trackData.CameraSets[cameraSetName].Add(ReadString(br));
+            }
+
+            var hudPageCount = br.ReadByte();
+            for (int i = 0; i < hudPageCount; i++)
+                trackData.HudPages.Add(ReadString(br));
+
+            OnTrackDataUpdate?.Invoke(this, trackData);
+        }
+        catch (Exception e)
+        {
+            Logger?.Invoke(e.Message);
+            throw;
+        }
+    }
+
+    private void GetBroadcastingEvent(BinaryReader br)
+    {
+        try
+        {
+            var broadcastingEvent = new BroadcastingEvent
+            {
+                Type = (BroadcastingEventType)br.ReadByte(),
+                Message = ReadString(br),
+                TimeMs = br.ReadInt32(),
+                CarIndex = br.ReadInt32()
+            };
+
+            //broadcastingEvent.CarData = _entryListCars.FirstOrDefault(x => x.CarIndex == broadcastingEvent.CarIndex);
+
+            OnBroadcastingEvent?.Invoke(this, broadcastingEvent);
+        }
+        catch (Exception e)
+        {
+            Logger?.Invoke(e.Message);
+            throw;
+        }
     }
 
     private void RequestConnection()
     {
         Send(
             (byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION,
-            (byte)_broadcastingProtocolVersion,
+            (byte)BroadcastingProtocolVersion,
             DisplayName,
             ConnectionPassword,
             MsRealtimeUpdateInterval,
@@ -346,6 +425,9 @@ public class AccClient
 
     private void RequestDisconnection()
     {
+        if (_connectionId == null)
+            return;
+        
         Send(
             (byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION,
             _connectionId.Value
@@ -354,6 +436,10 @@ public class AccClient
 
     private void RequestEntryList()
     {
+        if (_requestedEntryList || _connectionId == null)
+            return;
+        
+        _requestedEntryList = true;
         Send(
             (byte)OutboundMessageTypes.REQUEST_ENTRY_LIST,
             _connectionId.Value
@@ -362,6 +448,9 @@ public class AccClient
 
     private void RequestTrackData()
     {
+        if (_connectionId == null)
+            return;
+        
         Send(
             (byte)OutboundMessageTypes.REQUEST_TRACK_DATA,
             _connectionId.Value
@@ -370,6 +459,9 @@ public class AccClient
 
     public void RequestFocusChange(int carIndex = -1, string cameraSet = null, string camera = null)
     {
+        if (_connectionId == null)
+            return;
+        
         var args = new List<object>
         {
             (byte)OutboundMessageTypes.CHANGE_FOCUS,
@@ -402,6 +494,9 @@ public class AccClient
 
     public void RequestInstantReplay(float startTime, float durationMs, int carIndex = -1, string cameraSet = "", string camera = "")
     {
+        if (_connectionId == null)
+            return;
+        
         Send(
             (byte)OutboundMessageTypes.INSTANT_REPLAY_REQUEST,
             _connectionId.Value,
@@ -415,6 +510,9 @@ public class AccClient
 
     public void RequestHudPage(string pageName)
     {
+        if (_connectionId == null)
+            return;
+        
         Send(
             (byte)OutboundMessageTypes.CHANGE_HUD_PAGE,
             _connectionId.Value,
@@ -422,7 +520,7 @@ public class AccClient
         );
     }
 
-    private void Run()
+    /*private void Run()
     {
         try
         {
@@ -458,41 +556,14 @@ public class AccClient
         _reader.Stop();
         _reader = null;
         _udpClient.Close();
+        _udpClient.Dispose();
         _udpClient = null;
-    }
+    }*/
 
-    public bool IsAlive => _thread != null && _thread.IsAlive;
-
-    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "DRE x ACC", int updateIntervalMs = 16)
-    {
-        if (IsAlive)
-            throw new InvalidOperationException("Must be stopped");
-
-        IpAddress = url;
-        Port = port;
-        DisplayName = displayName;
-        ConnectionPassword = password;
-        MsRealtimeUpdateInterval = updateIntervalMs;
-        CommandPassword = commandPassword;
-        
-        UpdateConnectionState(UDPState.Connecting);
-        _server = new IPEndPoint(IPAddress.Parse(url), port);
-        //_udpClient = new UdpClient();
-        //_reader = new ThreadedSocketReader(_udpClient.Client);
-        //_thread = new Thread(Run);
-        _stopSignal = false;
-        //_thread.Start();
-        _connectionId = null;
-        _writable = false;
-        //_displayName = displayName;
-        //_updateIntervalMs = updateIntervalMs;
-        //RequestConnection(password, commandPassword);
-        Task.Run(Connect);
-    }
 
     private UdpClient GetUdpClient(bool isSending = false)
     {
-        lock(udpLock)
+        lock(UdpLock)
         { 
             if (_udpClient == null || !_udpClient.Client.Connected)
             {
@@ -508,8 +579,12 @@ public class AccClient
                     }
                 }
 
-                _udpClient = new UdpClient();
-                _udpClient.Connect(IpAddress, Port);
+                var udpClient = new UdpClient();
+                //udpClient.EnableBroadcast = true;
+                //udpClient.Client.ReceiveTimeout = 1000;
+                //udpClient.Client.SendTimeout = 1000;
+                udpClient.Connect(IpAddress, Port);
+                _udpClient = udpClient;
 
                 if(!isSending)
                     RequestConnection();
@@ -518,7 +593,33 @@ public class AccClient
             return _udpClient;
         }
     }
+
+    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "DRE x ACC", int updateIntervalMs = 16)
+    {
+        if (!string.IsNullOrEmpty(IpAddress) || _connectionState != UDPState.Disconnected)
+            throw new InvalidOperationException($"Must be stopped. IpAddress={IpAddress}, _connectionState={_connectionState}");
     
+        IpAddress = url;
+        Port = port;
+        DisplayName = $"{displayName}-{DateTime.Now:MM-dd-HH-mm-ss}";
+        ConnectionPassword = password;
+        MsRealtimeUpdateInterval = updateIntervalMs;
+        CommandPassword = commandPassword;
+        
+        UpdateConnectionState(UDPState.Connecting);
+        //_server = new IPEndPoint(IPAddress.Parse(url), port);
+        //_udpClient = new UdpClient();
+        //_reader = new ThreadedSocketReader(_udpClient.Client);
+        //_thread = new Thread(Run);
+        //_stopSignal = false;
+        //_thread.Start();
+        _connectionId = null;
+        //_displayName = displayName;
+        //_updateIntervalMs = updateIntervalMs;
+        //RequestConnection(password, commandPassword);
+        Task.Run(Connect);
+    }
+
     private async Task Connect()
     {
         _udpAlive = true;
@@ -527,7 +628,7 @@ public class AccClient
         {
             try
             {
-                var client = GetUdpClient();
+                var client = GetUdpClient(_connectionState == UDPState.Connected);
 
                 if (!client.Client.Connected)
                 {
@@ -536,14 +637,21 @@ public class AccClient
                 }
 
                 var udpReceiveTask = client.ReceiveAsync();
+                await Task.Delay(10);
 
                 if (!udpReceiveTask.IsCompleted)
-                    udpReceiveTask.Wait(20000);
+                    udpReceiveTask.Wait(2500);
+                
+                if (!_udpAlive)
+                    break;
 
                 if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
                 {
                     try
                     {
+                        client.Client.Shutdown(SocketShutdown.Both);
+                        //client.Client.Disconnect(true);
+                        client.Client.Close();
                         client.Close();
                     }
                     catch (Exception e)
@@ -562,14 +670,10 @@ public class AccClient
                     else
                     {
                         using var ms = new MemoryStream(udpPacket.Buffer);
-                        using var reader = new BinaryReader(ms);
+                        using var br = new BinaryReader(ms);
                         
-                        var messageTypeData = reader.Read(1, 100);
-                        if (messageTypeData == null)
-                            continue;
-
-                        var messageType = messageTypeData[0];
-                        _getMethods[messageType]();
+                        var messageType = (InboundMessageTypes)br.ReadByte();
+                        _getMethods[messageType](br);
                     }
                 }
             }
@@ -577,10 +681,52 @@ public class AccClient
             {
                 await Task.Delay(1000);
                 //Ignored: Not UDP server aka ACC isn't running
+                _udpClient?.Close();
+                _udpClient = null;
+
             }
             catch (Exception ex)
             {
                 Logger?.Invoke(ex.Message);
+            }
+        }
+    }
+
+    private bool GetUdpClient(out UdpClient udpClient)
+    {
+        lock(UdpLock)
+        { 
+            try
+            {
+                if (_udpClient == null || _udpClient.Client == null || !_udpClient.Client.Connected)
+                {
+                    if (_udpClient != null)
+                    {
+                        try
+                        {
+                            _udpClient.Close();
+                            _udpClient = null;
+                        }
+                        catch (Exception e)
+                        {
+                            Logger?.Invoke(e.Message);
+                        }
+                    }
+
+                    udpClient = new UdpClient();
+                    udpClient.Connect(IpAddress, Port);
+                    _udpClient = udpClient;
+                    return true;
+                }
+
+                udpClient = _udpClient;
+                return false;
+            }
+            catch (Exception e)
+            {
+                Logger?.Invoke(e.Message);
+                udpClient = null;
+                return false;
             }
         }
     }
@@ -598,11 +744,11 @@ public class AccClient
         // }
         
         _udpAlive = false;
-
         if (_udpClient != null)
         {
             try
             {
+                RequestDisconnection();
                 _udpClient.Close();
             }
             catch (Exception e)
@@ -614,6 +760,21 @@ public class AccClient
         Logger?.Invoke($"ACC UDP Client Stopped: {reason}");
         UpdateConnectionState(UDPState.Disconnected);
     }
+
+    public void Dispose()
+    {
+        _udpClient?.Close();
+        _udpClient = null;
+    }
+
+    public void RequestDataOnConnected()
+    {
+        if (_udpClient == null || _udpClient.Client == null || !_udpClient.Client.Connected)
+            return;
+        
+        RequestTrackData();
+        RequestEntryList();
+    }
 }
 
 public enum UDPState
@@ -621,121 +782,4 @@ public enum UDPState
     Connected,
     Disconnected,
     Connecting
-}
-
-public class ThreadedSocketReader
-{
-    private Socket _source;
-    private int _chunkSize;
-    private List<byte> _data = new List<byte>();
-    private object _dataLock = new object();
-    private bool _stopSignal;
-    private Thread _thread;
-    private Exception _exception;
-
-    public ThreadedSocketReader(Socket source, int chunkSize = 1024)
-    {
-        _source = source;
-        _chunkSize = chunkSize;
-        _thread = new Thread(Run);
-        _thread.IsBackground = true;
-        _thread.Start();
-    }
-
-    public bool IsAlive => _thread != null && _thread.IsAlive;
-
-    public int Size
-    {
-        get
-        {
-            lock (_dataLock)
-            {
-                return _data.Count;
-            }
-        }
-    }
-
-    public byte[] Read(int size = -1, int timeout = -1)
-    {
-        lock (_dataLock)
-        {
-            if (!IsAlive && (size == -1 || _data.Count < size))
-            {
-                if (_exception != null)
-                    throw _exception;
-                throw new EndOfStreamException();
-            }
-
-            if (size == -1)
-            {
-                if (_data.Count > 0)
-                {
-                    var result = _data.ToArray();
-                    _data.Clear();
-                    return result;
-                }
-
-                return null;
-            }
-
-            if (_data.Count < size)
-            {
-                if (timeout == -1)
-                {
-                    Monitor.Wait(_dataLock);
-                }
-                else if (timeout > 0)
-                {
-                    if (!Monitor.Wait(_dataLock, timeout))
-                        return null;
-                }
-                else
-                {
-                    // Timeout is 0 or invalid negative value
-                    return null;
-                }
-            }
-
-            var data = _data.GetRange(0, Math.Min(size, _data.Count)).ToArray();
-            _data.RemoveRange(0, data.Length);
-            return data;
-        }
-    }
-
-    public void Stop()
-    {
-        _stopSignal = true;
-        _thread = null;
-    }
-
-    private void Run()
-    {
-        var buffer = new byte[_chunkSize];
-        while (!_stopSignal)
-        {
-            try
-            {
-                var bytesRead = _source.Receive(buffer);
-                if (bytesRead > 0)
-                {
-                    lock (_dataLock)
-                    {
-                        _data.AddRange(buffer.Take(bytesRead));
-                        Monitor.PulseAll(_dataLock);
-                    }
-                }
-            }
-            catch (SocketException se)
-            {
-                //Logger($"SocketException: {se.Message}");
-                //UpdateConnectionState(UDPState.Disconnected);
-                break;
-            }
-            catch (Exception e)
-            {
-                _exception = e;
-                break;
-            }
-        }
-    }
 }

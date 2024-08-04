@@ -2,6 +2,21 @@
 
 namespace AssettoCorsaSharedMemory
 {
+    public class PhysicsEventArgs(ACCSharedMemoryPhysics accSharedMemoryPhysics) : EventArgs
+    {
+        public ACCSharedMemoryPhysics ACCSharedMemoryPhysics { get; private set; } = accSharedMemoryPhysics;
+    }
+
+    public class StaticInfoEventArgs(ACCSharedMemoryStatic accSharedMemoryStatic) : EventArgs
+    {
+        public ACCSharedMemoryStatic ACCSharedMemoryStatic { get; private set; } = accSharedMemoryStatic;
+    }
+
+    public class GraphicsEventArgs(ACCSharedMemoryGraphics accSharedMemoryGraphics) : EventArgs
+    {
+        public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; } = accSharedMemoryGraphics;
+    }
+    
     public class MemoryStatusEventArgs : EventArgs
     {
         public AC_MEMORY_STATUS Status {get; private set;}
