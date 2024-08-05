@@ -40,6 +40,7 @@ public class AccClient : IDisposable
     //private ThreadedSocketReader _reader;
     private bool _udpAlive;
     private bool _requestedEntryList;
+    private bool _simPaused;
 
     public event EventHandler<UDPState> OnConnectionStateChange;
     public event EventHandler<TrackData> OnTrackDataUpdate;
@@ -64,6 +65,11 @@ public class AccClient : IDisposable
             { InboundMessageTypes.ENTRY_LIST_CAR, GetEntryListCar },
             { InboundMessageTypes.BROADCASTING_EVENT, GetBroadcastingEvent }
         };
+    }
+
+    public void UpdateSimPaused(bool paused)
+    {
+        _simPaused = paused;
     }
 
     private void UpdateConnectionState(UDPState state)
@@ -123,11 +129,12 @@ public class AccClient : IDisposable
             var isReadonly = br.ReadByte() == 0;
             var errMsg = ReadString(br);
 
-            Logger?.Invoke("REGISTRATION_RESULT: " + connectionSuccess + " : " + errMsg + " : " + DateTime.Now.ToString("HH:mm:ss.fff"));
+            Logger?.Invoke("ACC UDP Client GetRegistrationResult: " + connectionSuccess + " error: " + errMsg);
 
             if (isReadonly)
             {
-                Stop($"GetRegistrationResult: Is read only. Rejected: ({errMsg})");
+                Stop($"ACC UDP Client GetRegistrationResult: Is read only. Rejected: ({errMsg})");
+                return;
             }
 
             UpdateConnectionState(UDPState.Connected);
@@ -265,6 +272,7 @@ public class AccClient : IDisposable
     {
         try
         {
+            var oldCount = _entryListCars.Count;
             var carCount = br.ReadUInt16();
             var changes = false;
             for (int i = 0; i < carCount; i++)
@@ -278,7 +286,9 @@ public class AccClient : IDisposable
             }
 
             if (changes)
-                Logger?.Invoke($"ENTRY_LIST: {DateTime.UtcNow:HH:mm:ss.fff}");
+            {
+                Logger?.Invoke($"ACC UDP Client GetEntryList from {oldCount} -> {_entryListCars.Count}");
+            }
             
             _requestedEntryList = false;
         }
@@ -336,6 +346,8 @@ public class AccClient : IDisposable
                 _entryListCars[car.CarIndex] = car.Drivers.Count;
                 OnEntryListCarUpdate?.Invoke(this, car);
             }
+            else
+                OnEntryListCarUpdate?.Invoke(this, car);
         }
         catch (Exception e)
         {
@@ -520,47 +532,6 @@ public class AccClient : IDisposable
         );
     }
 
-    /*private void Run()
-    {
-        try
-        {
-            while (!_stopSignal)
-            {
-                try
-                {
-                    var messageTypeData = _reader.Read(1, 100);
-                    if (messageTypeData == null)
-                        continue;
-
-                    var messageType = messageTypeData[0];
-                    _getMethods[messageType]();
-                }
-                catch (Exception)
-                {
-                    UpdateConnectionState(UDPState.Disconnected);
-                    break;
-                }
-            }
-        }
-        finally
-        {
-            try
-            {
-                RequestDisconnection();
-            }
-            catch
-            {
-            }
-        }
-
-        _reader.Stop();
-        _reader = null;
-        _udpClient.Close();
-        _udpClient.Dispose();
-        _udpClient = null;
-    }*/
-
-
     private UdpClient GetUdpClient(bool isSending = false)
     {
         lock(UdpLock)
@@ -583,6 +554,7 @@ public class AccClient : IDisposable
                 //udpClient.EnableBroadcast = true;
                 //udpClient.Client.ReceiveTimeout = 1000;
                 //udpClient.Client.SendTimeout = 1000;
+                //udpClient.ExclusiveAddressUse = false;
                 udpClient.Connect(IpAddress, Port);
                 _udpClient = udpClient;
 
@@ -647,8 +619,18 @@ public class AccClient : IDisposable
 
                 if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
                 {
+                    if (_simPaused)
+                    {
+                        await Task.Delay(1000);
+                        continue;
+                    }
+                    
                     try
                     {
+                        RequestDisconnection();
+                        
+                        await Task.Delay(1000);
+                        
                         client.Client.Shutdown(SocketShutdown.Both);
                         //client.Client.Disconnect(true);
                         client.Client.Close();
