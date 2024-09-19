@@ -2,19 +2,34 @@
 
 namespace AssettoCorsaSharedMemory
 {
-    public class PhysicsEventArgs(ACCSharedMemoryPhysics accSharedMemoryPhysics) : EventArgs
+    public class PhysicsEventArgs : EventArgs
     {
-        public ACCSharedMemoryPhysics ACCSharedMemoryPhysics { get; private set; } = accSharedMemoryPhysics;
+        public PhysicsEventArgs(ACCSharedMemoryPhysics accSharedMemoryPhysics)
+        {
+            ACCSharedMemoryPhysics = accSharedMemoryPhysics;
+        }
+
+        public ACCSharedMemoryPhysics ACCSharedMemoryPhysics { get; private set; }
     }
 
-    public class StaticInfoEventArgs(ACCSharedMemoryStatic accSharedMemoryStatic) : EventArgs
+    public class StaticInfoEventArgs : EventArgs
     {
-        public ACCSharedMemoryStatic ACCSharedMemoryStatic { get; private set; } = accSharedMemoryStatic;
+        public StaticInfoEventArgs(ACCSharedMemoryStatic accSharedMemoryStatic)
+        {
+            ACCSharedMemoryStatic = accSharedMemoryStatic;
+        }
+
+        public ACCSharedMemoryStatic ACCSharedMemoryStatic { get; private set; }
     }
 
-    public class GraphicsEventArgs(ACCSharedMemoryGraphics accSharedMemoryGraphics) : EventArgs
+    public class GraphicsEventArgs : EventArgs
     {
-        public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; } = accSharedMemoryGraphics;
+        public GraphicsEventArgs(ACCSharedMemoryGraphics accSharedMemoryGraphics)
+        {
+            ACCSharedMemoryGraphics = accSharedMemoryGraphics;
+        }
+
+        public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; }
     }
     
     public class MemoryStatusEventArgs : EventArgs

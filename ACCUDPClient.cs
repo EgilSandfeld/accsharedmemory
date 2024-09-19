@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AssettoCorsaSharedMemory;
+using Serilog;
+using Sim.AssettoCorsaCompetizione;
 
-namespace Sim.AssettoCorsaCompetizione;
+namespace AssettoCorsaSharedMemory;
 
 public class AccClient : IDisposable
 {
-    public Action<string> Logger { get; }
+    // public Action<string> Logger { get; }
     //public bool IsAlive => _thread != null && _thread.IsAlive;
 
     public string CommandPassword { get; set; }
@@ -41,6 +41,8 @@ public class AccClient : IDisposable
     private bool _udpAlive;
     private bool _requestedEntryList;
     private bool _simPaused;
+    
+    private CancellationTokenSource _cts;
 
     public event EventHandler<UDPState> OnConnectionStateChange;
     public event EventHandler<TrackData> OnTrackDataUpdate;
@@ -51,9 +53,8 @@ public class AccClient : IDisposable
 
     public UDPState ConnectionState => _connectionState;
 
-    public AccClient(Action<string> logger)
+    public AccClient()
     {
-        Logger = logger;
         _clientStartTime = DateTime.Now;
         _getMethods = new Dictionary<InboundMessageTypes, Action<BinaryReader>>
         {
@@ -82,36 +83,79 @@ public class AccClient : IDisposable
         }
     }
     
-    private void Send(params object[] args)
+    /// <summary>
+    /// Constructs and sends a message using BinaryWriter to ensure correct serialization.
+    /// </summary>
+    /// <param name="messageAction">Action to write the message content.</param>
+    private void Send(Action<BinaryWriter> messageAction)
     {
         try
         {
-            var buffer = new List<byte>();
-            foreach (var arg in args)
-            {
-                if (arg is byte b)
-                    buffer.Add(b);
-                else if (arg is int i)
-                    buffer.AddRange(BitConverter.GetBytes(i));
-                else if (arg is float f)
-                    buffer.AddRange(BitConverter.GetBytes(f));
-                else if (arg is bool bl)
-                    buffer.Add(bl ? (byte)1 : (byte)0);
-                else if (arg is string s)
-                {
-                    var encoded = Encoding.UTF8.GetBytes(s);
-                    buffer.AddRange(BitConverter.GetBytes((ushort)encoded.Length));
-                    buffer.AddRange(encoded);
-                }
-            }
+            using var ms = new MemoryStream();
+            using var bw = new BinaryWriter(ms);
 
-            _udpClient.Send(buffer.ToArray(), buffer.Count);
+            // Invoke the action to write specific message content
+            messageAction(bw);
+
+            var messageBytes = ms.ToArray();
+            var hex = BitConverter.ToString(messageBytes).Replace("-", " ");
+            Log.Debug($"Sending bytes: {hex}");
+
+            _udpClient.Send(messageBytes, messageBytes.Length);
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, $"Send Error: {e.Message}");
         }
     }
+    
+    // private void Send(params object[] args)
+    // {
+    //     try
+    //     {
+    //         var buffer = new List<byte>();
+    //         byte[] sentBytes;
+    //         foreach (var arg in args)
+    //         {
+    //             switch (arg)
+    //             {
+    //                 case byte b:
+    //                     buffer.Add(b);
+    //                     break;
+    //                 case int i:
+    //                     buffer.AddRange(BitConverter.GetBytes(i));
+    //                     break;
+    //                 case float f:
+    //                     buffer.AddRange(BitConverter.GetBytes(f));
+    //                     break;
+    //                 case bool bl:
+    //                     buffer.Add(bl ? (byte)1 : (byte)0);
+    //                     break;
+    //                 case string s:
+    //                     var encoded = Encoding.UTF8.GetBytes(s);
+    //                     buffer.AddRange(BitConverter.GetBytes((ushort)encoded.Length));
+    //                     buffer.AddRange(encoded);
+    //                     break;
+    //                 case byte[] byteArray:
+    //                     buffer.AddRange(byteArray);
+    //                     break;
+    //                 default:
+    //                     throw new ArgumentException($"Unsupported argument type: {arg.GetType()}");
+    //             }
+    //         }
+    //
+    //         // Log the bytes being sent
+    //         sentBytes = buffer.ToArray();
+    //         var hex = BitConverter.ToString(sentBytes).Replace("-", " ");
+    //         Log.Debug($"Sending bytes: {hex}");
+    //         
+    //         _udpClient?.Send(buffer.ToArray(), buffer.Count);
+    //     }
+    //     catch (Exception e)
+    //     {
+    //         Log.Error(e, "Send Error");
+    //     }
+    // }
 
     private static string ReadString(BinaryReader br)
     {
@@ -129,11 +173,17 @@ public class AccClient : IDisposable
             var isReadonly = br.ReadByte() == 0;
             var errMsg = ReadString(br);
 
-            Logger?.Invoke("ACC UDP Client GetRegistrationResult: " + connectionSuccess + " error: " + errMsg);
+            if (!connectionSuccess)
+            {
+                Log.Error($"ACC UDP Client GetRegistrationResult: false, error: {errMsg}");
+                Stop($"Registration failed: {errMsg}");
+                return;
+            }
 
             if (isReadonly)
             {
-                Stop($"ACC UDP Client GetRegistrationResult: Is read only. Rejected: ({errMsg})");
+                Log.Error($"ACC UDP Client GetRegistrationResult: Is read only. Rejected: ({errMsg})");
+                Stop($"Is read only: {errMsg}");
                 return;
             }
 
@@ -143,7 +193,7 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, $"GetRegistrationResult Error: {e.Message}");
             throw;
         }
     }
@@ -185,7 +235,7 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, "GetRealtimeUpdate");
             throw;
         }
     }
@@ -263,7 +313,7 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, e.Message);
             throw;
         }
     }
@@ -287,14 +337,15 @@ public class AccClient : IDisposable
 
             if (changes)
             {
-                Logger?.Invoke($"ACC UDP Client GetEntryList from {oldCount} -> {_entryListCars.Count}");
+                Log.Debug($"ACC UDP Client GetEntryList from {oldCount} -> {_entryListCars.Count}");
             }
             
             _requestedEntryList = false;
+            RequestTrackData();
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, e.Message);
             throw;
         }
     }
@@ -331,7 +382,7 @@ public class AccClient : IDisposable
             if (!_entryListCars.ContainsKey(car.CarIndex))
             {
                 if (SecondsSinceStart() > 30)
-                    Logger?.Invoke($"New car index entry: {car.CarIndex} with {car.Drivers.Count} drivers");
+                    Log.Debug($"New car index entry: {car.CarIndex} with {car.Drivers.Count} drivers");
 
                 _entryListCars[car.CarIndex] = car.Drivers.Count;
                 OnEntryListCarUpdate?.Invoke(this, car);
@@ -341,7 +392,7 @@ public class AccClient : IDisposable
             if (_entryListCars[car.CarIndex] != car.Drivers.Count)
             {
                 if (SecondsSinceStart() > 30)
-                    Logger?.Invoke($"{_entryListCars[car.CarIndex]} -> {car.Drivers.Count} drivers in car index: {car.CarIndex}");
+                    Log.Debug($"{_entryListCars[car.CarIndex]} -> {car.Drivers.Count} drivers in car index: {car.CarIndex}");
 
                 _entryListCars[car.CarIndex] = car.Drivers.Count;
                 OnEntryListCarUpdate?.Invoke(this, car);
@@ -351,7 +402,7 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, e.Message);
             throw;
         }
     }
@@ -395,7 +446,7 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, e.Message);
             throw;
         }
     }
@@ -418,344 +469,408 @@ public class AccClient : IDisposable
         }
         catch (Exception e)
         {
-            Logger?.Invoke(e.Message);
+            Log.Error(e, e.Message);
             throw;
         }
     }
 
+    /// <summary>
+    /// Will try to register this client in the targeted ACC instance.
+    /// Needs to be called once, before anything else can happen.
+    /// </summary>
     private void RequestConnection()
     {
-        Send(
-            (byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION,
-            (byte)BroadcastingProtocolVersion,
-            DisplayName,
-            ConnectionPassword,
-            MsRealtimeUpdateInterval,
-            CommandPassword
-        );
+        try
+        {
+            Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION);
+                bw.Write((byte)BroadcastingProtocolVersion);
+                WriteString(bw, DisplayName);
+                WriteString(bw, ConnectionPassword);
+                bw.Write(MsRealtimeUpdateInterval);
+                WriteString(bw, CommandPassword);
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "RequestConnection Error: " + ex.Message);
+        }
     }
 
     private void RequestDisconnection()
     {
         if (_connectionId == null)
             return;
-        
-        Send(
-            (byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION,
-            _connectionId.Value
-        );
+
+        Send(bw =>
+        {
+            bw.Write((byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION);
+            bw.Write(_connectionId.Value);
+        });
     }
 
+    /// <summary>
+    /// Will ask the ACC client for an updated entry list, containing all car and driver data.
+    /// The client will send this automatically when something changes; however if you detect a carIndex or driverIndex, this may cure the 
+    /// problem for future updates
+    /// </summary>
     private void RequestEntryList()
     {
-        if (_requestedEntryList || _connectionId == null)
+        /*if (_requestedEntryList || _connectionId == null)
+        {
+            Log.Debug($"RequestEntryList denied: RequestedEntryList={_requestedEntryList} _connectionId={_connectionId}");
             return;
-        
-        _requestedEntryList = true;
-        Send(
-            (byte)OutboundMessageTypes.REQUEST_ENTRY_LIST,
-            _connectionId.Value
-        );
+        }
+
+        _requestedEntryList = true;*/
+        try
+        {
+            Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.REQUEST_ENTRY_LIST);
+                bw.Write(_connectionId.Value);
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"RequestEntryList Error: {ex.Message}");
+            _requestedEntryList = false;
+        }
     }
 
     private void RequestTrackData()
     {
-        if (_connectionId == null)
-            return;
-        
-        Send(
-            (byte)OutboundMessageTypes.REQUEST_TRACK_DATA,
-            _connectionId.Value
-        );
+        try
+        {
+            Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.REQUEST_TRACK_DATA);
+                bw.Write(_connectionId.Value);
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"RequestTrackData Error: {ex.Message}");
+        }
     }
+    
+    // private void RequestEntryList()
+    // {
+    //     if (_requestedEntryList || _connectionId == null)
+    //     {
+    //         //Log.Debug("RequestEntryList denied: RequestedEntryList={RequestedEntryList} _connectionId={ConnectionId}", _requestedEntryList, _connectionId);
+    //         return;
+    //     }
+    //     
+    //     _requestedEntryList = true;
+    //     try
+    //     {
+    //         Send(bw =>
+    //         {
+    //             bw.Write((byte)OutboundMessageTypes.REQUEST_ENTRY_LIST);
+    //             bw.Write(_connectionId.Value);
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Log.Debug($"RequestEntryList Error: {ex.Message}");
+    //         _requestedEntryList = false;
+    //     }
+    // }
+    //
+    // private void RequestTrackData()
+    // {
+    //     try
+    //     {
+    //         Send(bw =>
+    //         {
+    //             bw.Write((byte)OutboundMessageTypes.REQUEST_TRACK_DATA);
+    //             bw.Write(_connectionId.Value);
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Log.Debug($"RequestTrackData Error: {ex.Message}");
+    //     }
+    // }
+
 
     public void RequestFocusChange(int carIndex = -1, string cameraSet = null, string camera = null)
-    {
-        if (_connectionId == null)
-            return;
-        
-        var args = new List<object>
         {
-            (byte)OutboundMessageTypes.CHANGE_FOCUS,
-            _connectionId.Value
-        };
+            if (_connectionId == null)
+                return;
 
-        if (carIndex >= 0)
-        {
-            args.Add(true);
-            args.Add((ushort)carIndex);
-        }
-        else
-        {
-            args.Add(false);
-        }
-
-        if (!string.IsNullOrEmpty(cameraSet) && !string.IsNullOrEmpty(camera))
-        {
-            args.Add(true);
-            args.Add(cameraSet);
-            args.Add(camera);
-        }
-        else
-        {
-            args.Add(false);
-        }
-
-        Send(args.ToArray());
-    }
-
-    public void RequestInstantReplay(float startTime, float durationMs, int carIndex = -1, string cameraSet = "", string camera = "")
-    {
-        if (_connectionId == null)
-            return;
-        
-        Send(
-            (byte)OutboundMessageTypes.INSTANT_REPLAY_REQUEST,
-            _connectionId.Value,
-            startTime,
-            durationMs,
-            carIndex,
-            cameraSet,
-            camera
-        );
-    }
-
-    public void RequestHudPage(string pageName)
-    {
-        if (_connectionId == null)
-            return;
-        
-        Send(
-            (byte)OutboundMessageTypes.CHANGE_HUD_PAGE,
-            _connectionId.Value,
-            pageName
-        );
-    }
-
-    private UdpClient GetUdpClient(bool isSending = false)
-    {
-        lock(UdpLock)
-        { 
-            if (_udpClient == null || !_udpClient.Client.Connected)
+            Send(bw =>
             {
-                if (_udpClient != null)
+                bw.Write((byte)OutboundMessageTypes.CHANGE_FOCUS);
+                bw.Write(_connectionId.Value);
+
+                if (carIndex >= 0)
                 {
-                    try
-                    {
-                        _udpClient.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        Logger?.Invoke(e.Message);
-                    }
-                }
-
-                var udpClient = new UdpClient();
-                //udpClient.EnableBroadcast = true;
-                //udpClient.Client.ReceiveTimeout = 1000;
-                //udpClient.Client.SendTimeout = 1000;
-                //udpClient.ExclusiveAddressUse = false;
-                udpClient.Connect(IpAddress, Port);
-                _udpClient = udpClient;
-
-                if(!isSending)
-                    RequestConnection();
-            }
-
-            return _udpClient;
-        }
-    }
-
-    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "DRE x ACC", int updateIntervalMs = 16)
-    {
-        if (!string.IsNullOrEmpty(IpAddress) || _connectionState != UDPState.Disconnected)
-            throw new InvalidOperationException($"Must be stopped. IpAddress={IpAddress}, _connectionState={_connectionState}");
-    
-        IpAddress = url;
-        Port = port;
-        DisplayName = $"{displayName}-{DateTime.Now:MM-dd-HH-mm-ss}";
-        ConnectionPassword = password;
-        MsRealtimeUpdateInterval = updateIntervalMs;
-        CommandPassword = commandPassword;
-        
-        UpdateConnectionState(UDPState.Connecting);
-        //_server = new IPEndPoint(IPAddress.Parse(url), port);
-        //_udpClient = new UdpClient();
-        //_reader = new ThreadedSocketReader(_udpClient.Client);
-        //_thread = new Thread(Run);
-        //_stopSignal = false;
-        //_thread.Start();
-        _connectionId = null;
-        //_displayName = displayName;
-        //_updateIntervalMs = updateIntervalMs;
-        //RequestConnection(password, commandPassword);
-        Task.Run(Connect);
-    }
-
-    private async Task Connect()
-    {
-        _udpAlive = true;
-
-        while (_udpAlive)
-        {
-            try
-            {
-                var client = GetUdpClient(_connectionState == UDPState.Connected);
-
-                if (!client.Client.Connected)
-                {
-                    await Task.Delay(1000);
-                    continue;
-                }
-
-                var udpReceiveTask = client.ReceiveAsync();
-                await Task.Delay(10);
-
-                if (!udpReceiveTask.IsCompleted)
-                    udpReceiveTask.Wait(2500);
-                
-                if (!_udpAlive)
-                    break;
-
-                if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
-                {
-                    if (_simPaused)
-                    {
-                        await Task.Delay(1000);
-                        continue;
-                    }
-                    
-                    try
-                    {
-                        RequestDisconnection();
-                        
-                        await Task.Delay(1000);
-                        
-                        client.Client.Shutdown(SocketShutdown.Both);
-                        //client.Client.Disconnect(true);
-                        client.Client.Close();
-                        client.Close();
-                    }
-                    catch (Exception e)
-                    {
-                        Logger?.Invoke(e.Message);
-                    }
-
-                    _udpClient = null;
+                    bw.Write((byte)1);
+                    bw.Write((ushort)carIndex);
                 }
                 else
                 {
-                    var udpPacket = udpReceiveTask.Result;
-
-                    if (udpPacket.Buffer.Length == 0)
-                        await Task.Delay(10);
-                    else
-                    {
-                        using var ms = new MemoryStream(udpPacket.Buffer);
-                        using var br = new BinaryReader(ms);
-                        
-                        var messageType = (InboundMessageTypes)br.ReadByte();
-                        _getMethods[messageType](br);
-                    }
+                    bw.Write((byte)0);
                 }
-            }
-            catch (SocketException)
-            {
-                await Task.Delay(1000);
-                //Ignored: Not UDP server aka ACC isn't running
-                _udpClient?.Close();
-                _udpClient = null;
 
+                if (!string.IsNullOrEmpty(cameraSet) && !string.IsNullOrEmpty(camera))
+                {
+                    bw.Write((byte)1);
+                    WriteString(bw, cameraSet);
+                    WriteString(bw, camera);
+                }
+                else
+                {
+                    bw.Write((byte)0);
+                }
+            });
+        }
+
+        public void RequestInstantReplay(float startTime, float durationMs, int carIndex = -1, string cameraSet = "", string camera = "")
+        {
+            if (_connectionId == null)
+                return;
+
+            Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.INSTANT_REPLAY_REQUEST);
+                bw.Write(_connectionId.Value);
+                bw.Write(startTime);
+                bw.Write(durationMs);
+                bw.Write(carIndex);
+                WriteString(bw, cameraSet);
+                WriteString(bw, camera);
+            });
+        }
+
+        public void RequestHudPage(string pageName)
+        {
+            if (_connectionId == null)
+                return;
+
+            Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.CHANGE_HUD_PAGE);
+                bw.Write(_connectionId.Value);
+                WriteString(bw, pageName);
+            });
+        }
+
+        private static void WriteString(BinaryWriter bw, string s)
+        {
+            var bytes = Encoding.UTF8.GetBytes(s);
+            bw.Write((ushort)bytes.Length);
+            bw.Write(bytes);
+        }
+
+    // private UdpClient GetUdpClient(bool isSending = false)
+    // {
+    //     lock(UdpLock)
+    //     { 
+    //         if (_udpClient == null || !_udpClient.Client.Connected)
+    //         {
+    //             if (_udpClient != null)
+    //             {
+    //                 try
+    //                 {
+    //                     _udpClient.Close();
+    //                 }
+    //                 catch (Exception e)
+    //                 {
+    //                     Log.Error(e, e.Message);
+    //                 }
+    //             }
+    //
+    //             var udpClient = new UdpClient();
+    //             //udpClient.EnableBroadcast = true;
+    //             //udpClient.Client.ReceiveTimeout = 1000;
+    //             //udpClient.Client.SendTimeout = 1000;
+    //             //udpClient.ExclusiveAddressUse = false;
+    //             udpClient.Connect(IpAddress, Port);
+    //             _udpClient = udpClient;
+    //
+    //             if(!isSending)
+    //                 RequestConnection();
+    //         }
+    //
+    //         return _udpClient;
+    //     }
+    // }
+    
+    public void Start(string url, int port, string password, string commandPassword = "", string displayName = "DRE x ACC", int updateIntervalMs = 16)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(IpAddress) || _connectionState != UDPState.Disconnected)
+                    throw new InvalidOperationException($"Must be stopped. IpAddress={IpAddress}, _connectionState={_connectionState}");
+
+                IpAddress = url;
+                Port = port;
+                DisplayName = $"{displayName}-{DateTime.Now:MM-dd-HH-mm-ss}";
+                ConnectionPassword = password;
+                MsRealtimeUpdateInterval = updateIntervalMs;
+                CommandPassword = commandPassword;
+
+                UpdateConnectionState(UDPState.Connecting);
+                _connectionId = null;
+
+                _cts = new CancellationTokenSource();
+                Task.Run(() => ConnectAsync(_cts.Token), _cts.Token);
             }
             catch (Exception ex)
             {
-                Logger?.Invoke(ex.Message);
+                Log.Error(ex, "Start Error");
             }
         }
-    }
 
-    private bool GetUdpClient(out UdpClient udpClient)
+    private async Task ConnectAsync(CancellationToken token)
     {
-        lock(UdpLock)
-        { 
+        _udpAlive = true;
+
+        while (_udpAlive && !token.IsCancellationRequested)
+        {
             try
             {
-                if (_udpClient == null || _udpClient.Client == null || !_udpClient.Client.Connected)
-                {
-                    if (_udpClient != null)
-                    {
-                        try
-                        {
-                            _udpClient.Close();
-                            _udpClient = null;
-                        }
-                        catch (Exception e)
-                        {
-                            Logger?.Invoke(e.Message);
-                        }
-                    }
+                GetUdpClient();
 
-                    udpClient = new UdpClient();
-                    udpClient.Connect(IpAddress, Port);
-                    _udpClient = udpClient;
-                    return true;
+                if (!_udpClient.Client.Connected)
+                {
+                    await Task.Delay(1000, token);
+                    continue;
                 }
 
-                udpClient = _udpClient;
-                return false;
+                // Await ReceiveAsync with cancellation support
+                var receiveTask = _udpClient.ReceiveAsync();
+
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                var completedTask = await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, linkedCts.Token));
+
+                if (completedTask == receiveTask)
+                {
+                    // Process the received packet
+                    var udpPacket = receiveTask.Result;
+
+                    if (udpPacket.Buffer.Length == 0)
+                    {
+                        await Task.Delay(10, token);
+                        continue;
+                    }
+
+                    using var ms = new MemoryStream(udpPacket.Buffer);
+                    using var br = new BinaryReader(ms);
+
+                    if (br.BaseStream.Length < 1)
+                    {
+                        Log.Error("ConnectAsync: Received packet too short.");
+                        continue;
+                    }
+
+                    var messageType = (InboundMessageTypes)br.ReadByte();
+                    if (_getMethods.TryGetValue(messageType, out var handler))
+                    {
+                        handler(br);
+                    }
+                    else
+                    {
+                        Log.Error($"ConnectAsync: Unknown message type: {messageType}");
+                    }
+                }
+                else
+                {
+                    // The delay was cancelled, likely due to shutdown
+                    break;
+                }
             }
-            catch (Exception e)
+            catch (OperationCanceledException)
             {
-                Logger?.Invoke(e.Message);
-                udpClient = null;
-                return false;
+                // Expected during shutdown, no action needed
             }
+            catch (SocketException se)
+            {
+                // Socket was closed, likely due to shutdown
+                if (se.SocketErrorCode is not (SocketError.Interrupted or SocketError.ConnectionReset))
+                    Log.Error(se, $"ConnectAsync SocketException Error: {se.Message} {se.SocketErrorCode} ({se.ErrorCode})");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"ConnectAsync Error: {ex.Message}");
+            }
+
+            await Task.Delay(1000, token);
+        }
+
+        // Cleanup after exiting loop
+        if (_udpClient != null)
+        {
+            _udpClient.Dispose();
+            _udpClient = null;
+        }
+
+        UpdateConnectionState(UDPState.Disconnected);
+        Log.Debug("ACC UDP Client has stopped.");
+    }
+
+    private void GetUdpClient()
+    {
+        lock (UdpLock)
+        {
+            if (_udpClient == null || !_udpClient.Client.Connected)
+            {
+                _udpClient?.Dispose();
+
+                _udpClient = new UdpClient();
+                _udpClient.Connect(IpAddress, Port);
+
+                RequestConnection();
+            }
+
+            return;
         }
     }
 
     public void Stop(string reason = "disconnected")
     {
-        // if (!IsAlive)
-        //     throw new InvalidOperationException($"Must be started: {reason}");
-        //
-        // _stopSignal = true;
-        // if (_thread != null)
-        // {
-        //     _thread.Join();
-        //     _thread = null;
-        // }
-        
-        _udpAlive = false;
-        if (_udpClient != null)
+        try
         {
-            try
-            {
-                RequestDisconnection();
-                _udpClient.Close();
-            }
-            catch (Exception e)
-            {
-                Logger?.Invoke(e.Message);
-            }
-        }
+            _udpAlive = false;
 
-        Logger?.Invoke($"ACC UDP Client Stopped: {reason}");
-        UpdateConnectionState(UDPState.Disconnected);
+            _cts?.Cancel();
+
+            _udpClient?.Close();
+            _udpClient = null;
+
+            Log.Debug($"ACC UDP Client Stopped: {reason}");
+            UpdateConnectionState(UDPState.Disconnected);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, $"Stop Error: {ex.Message}");
+        }
     }
 
     public void Dispose()
     {
-        _udpClient?.Close();
-        _udpClient = null;
+        Stop("disposed");
+        _cts?.Dispose();
     }
 
     public void RequestDataOnConnected()
     {
-        if (_udpClient == null || _udpClient.Client == null || !_udpClient.Client.Connected)
-            return;
-        
-        RequestTrackData();
-        RequestEntryList();
+        try
+        {
+            if (_udpClient == null || _udpClient.Client == null || !_udpClient.Client.Connected)
+                return;
+
+            RequestTrackData();
+            RequestEntryList();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "RequestDataOnConnected");
+        }
     }
 }
 
