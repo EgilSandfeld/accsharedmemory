@@ -14,6 +14,7 @@ namespace ksBroadcastingNetwork.Structs
         public TimeSpan SessionTime { get; internal set; }
         public TimeSpan RemainingTime { get; internal set; }
         public TimeSpan TimeOfDay { get; internal set; }
+        public float TimeOfDaySeconds { get; set; }
         public float RainLevel { get; internal set; }
         public float Clouds { get; internal set; }
         public float Wetness { get; internal set; }
@@ -29,8 +30,47 @@ namespace ksBroadcastingNetwork.Structs
         public TimeSpan SessionRemainingTime { get; internal set; }
         public TimeSpan SessionEndTime { get; internal set; }
         public RaceSessionType SessionType { get; internal set; }
+        public SessionPhase SessionPhase { get; set; }
+        
+        //TODO: Verify value is correct
+        public float SessionTimeMs { get; set; }
+        
+        //TODO: Verify value is correct
+        public float SessionEndTimeMs { get; set; }
         public byte AmbientTemp { get; internal set; }
         public byte TrackTemp { get; internal set; }
         public string CurrentHudPage { get; internal set; }
+        
+        public static RealtimeUpdate Null() => new RealtimeUpdate
+        {
+            EventIndex = 0,
+            SessionIndex = 0,
+            Phase = default,
+            SessionTime = TimeSpan.Zero,
+            RemainingTime = TimeSpan.Zero,
+            TimeOfDay = TimeSpan.Zero,
+            TimeOfDaySeconds = 0f,
+            RainLevel = 0f,
+            Clouds = 0f,
+            Wetness = 0f,
+            BestSessionLap = null,
+            BestLapCarIndex = 0,
+            BestLapDriverIndex = 0,
+            FocusedCarIndex = 0,
+            ActiveCameraSet = null,
+            ActiveCamera = null,
+            IsReplayPlaying = false,
+            ReplaySessionTime = 0f,
+            ReplayRemainingTime = 0f,
+            SessionRemainingTime = TimeSpan.Zero,
+            SessionEndTime = TimeSpan.Zero,
+            SessionType = default,
+            SessionPhase = default,
+            AmbientTemp = 0,
+            TrackTemp = 0,
+            CurrentHudPage = null,
+            SessionTimeMs = 0f,
+            SessionEndTimeMs = -1
+        };
     }
 }

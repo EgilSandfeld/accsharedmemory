@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Serilog;
 
 namespace ksBroadcastingNetwork
 {
@@ -32,7 +33,10 @@ namespace ksBroadcastingNetwork
             ConnectionPassword = connectionPassword;
             CommandPassword = commandPassword;
             MsRealtimeUpdateInterval = msRealtimeUpdateInterval;
+        }
 
+        public void Start()
+        {
             _listenerTask = ConnectAndRun();
         }
 
@@ -46,9 +50,9 @@ namespace ksBroadcastingNetwork
             ShutdownAsnyc().ContinueWith(t =>
              {
                  if (t.Exception?.InnerExceptions?.Any() == true)
-                     System.Diagnostics.Debug.WriteLine($"Client shut down with {t.Exception.InnerExceptions.Count} errors");
+                     Log.Error($"Client shut down with {t.Exception.InnerExceptions.Count} errors");
                  else
-                     System.Diagnostics.Debug.WriteLine("Client shut down asynchronously");
+                     Log.Error("Client shut down asynchronously");
 
              });
         }
@@ -78,15 +82,17 @@ namespace ksBroadcastingNetwork
                         MessageHandler.ProcessMessage(reader);
                     }
                 }
-                catch (ObjectDisposedException)
+                catch (ObjectDisposedException ex)
                 {
                     // Shutdown happened
+                    Log.Warning("ACCUdpRemoteClient ConnectAndRun: {Message}", ex.Message);
+
                     break;
                 }
                 catch (Exception ex)
                 {
                     // Other exceptions
-                    System.Diagnostics.Debug.WriteLine(ex);
+                    Log.Error(ex, "ConnectAndRun");
                 }
             }
         }
@@ -112,7 +118,7 @@ namespace ksBroadcastingNetwork
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine(ex);
+                        Log.Warning("ACCUdpRemoteClient Dispose: {Message}", ex.Message);
                     }
                 }
 

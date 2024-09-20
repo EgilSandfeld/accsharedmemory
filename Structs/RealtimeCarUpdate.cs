@@ -14,7 +14,7 @@ namespace ksBroadcastingNetwork.Structs
         public float WorldPosX { get; internal set; }
         public float WorldPosY { get; internal set; }
         public float Yaw { get; internal set; }
-        public CarLocationEnum CarLocation { get; internal set; }
+        public CarLocationEnum Location { get; internal set; }
         public int Kmh { get; internal set; }
         public int Position { get; internal set; }
         public int TrackPosition { get; internal set; }

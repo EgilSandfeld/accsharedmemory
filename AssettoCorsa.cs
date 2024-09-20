@@ -312,7 +312,7 @@ namespace AssettoCorsaSharedMemory
             { AC_STATUS.AC_REPLAY, "Replay" },
         };
 
-        public AssettoCorsa()
+        public AssettoCorsa(int telemetryUpdateIntervalMs)
         {
             sharedMemoryRetryTimer = new Timer(2000);
             sharedMemoryRetryTimer.AutoReset = true;
@@ -321,12 +321,12 @@ namespace AssettoCorsaSharedMemory
             physicsTimer = new Timer();
             physicsTimer.AutoReset = true;
             physicsTimer.Elapsed += physicsTimer_Elapsed;
-            PhysicsInterval = 10;
+            PhysicsInterval = telemetryUpdateIntervalMs;
 
             graphicsTimer = new Timer();
             graphicsTimer.AutoReset = true;
             graphicsTimer.Elapsed += graphicsTimer_Elapsed;
-            GraphicsInterval = 1000;
+            GraphicsInterval = telemetryUpdateIntervalMs;
 
             staticInfoTimer = new Timer();
             staticInfoTimer.AutoReset = true;

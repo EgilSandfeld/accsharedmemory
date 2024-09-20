@@ -25,7 +25,7 @@ namespace ksBroadcastingNetwork
 
     public enum CarLocationEnum
     {
-        NONE = 0,
+        Unknown = 0,
         Track = 1,
         Pitlane = 2,
         PitEntry = 3,
@@ -58,7 +58,7 @@ namespace ksBroadcastingNetwork
 
     public enum BroadcastingCarEventType
     {
-        None = 0,
+        Unknown = 0,
         GreenFlag = 1,
         SessionOver = 2,
         PenaltyCommMsg = 3,

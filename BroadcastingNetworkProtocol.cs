@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AssettoCorsaSharedMemory;
+using Serilog;
 
 namespace ksBroadcastingNetwork
 {
@@ -41,7 +43,7 @@ namespace ksBroadcastingNetwork
         public const int BROADCASTING_PROTOCOL_VERSION = 4;
         private string ConnectionIdentifier { get; }
         private SendMessageDelegate Send { get; }
-        public int ConnectionId { get; private set; }
+        public int ConnectionId { get; private set; } = -1;
         public float TrackMeters { get; private set; }
 
         internal delegate void SendMessageDelegate(byte[] payload);
@@ -65,8 +67,6 @@ namespace ksBroadcastingNetwork
 
         public delegate void BroadcastingEventDelegate(string sender, BroadcastingEvent evt);
         public event BroadcastingEventDelegate OnBroadcastingEvent;
-        
-
 
         #endregion
 
@@ -112,8 +112,8 @@ namespace ksBroadcastingNetwork
                         OnConnectionStateChanged?.Invoke(ConnectionId, connectionSuccess, isReadonly, errMsg);
 
                         // In case this was successful, we will request the initial data
-                        RequestEntryList();
                         RequestTrackData();
+                        //RequestEntryList();
                     }
                     break;
                 case InboundMessageTypes.ENTRY_LIST:
@@ -176,8 +176,10 @@ namespace ksBroadcastingNetwork
                         update.Phase = (SessionPhase)br.ReadByte();
                         var sessionTime = br.ReadSingle();
                         update.SessionTime = TimeSpan.FromMilliseconds(sessionTime);
+                        update.SessionTimeMs = sessionTime;
                         var sessionEndTime = br.ReadSingle();
                         update.SessionEndTime = TimeSpan.FromMilliseconds(sessionEndTime);
+                        update.SessionEndTimeMs = sessionEndTime;
 
                         update.FocusedCarIndex = br.ReadInt32();
                         update.ActiveCameraSet = ReadString(br);
@@ -214,7 +216,7 @@ namespace ksBroadcastingNetwork
                         carUpdate.WorldPosX = br.ReadSingle();
                         carUpdate.WorldPosY = br.ReadSingle();
                         carUpdate.Yaw = br.ReadSingle();
-                        carUpdate.CarLocation = (CarLocationEnum)br.ReadByte(); // - , Track, Pitlane, PitEntry, PitExit = 4
+                        carUpdate.Location = (CarLocationEnum)br.ReadByte(); // - , Track, Pitlane, PitEntry, PitExit = 4
                         carUpdate.Kmh = br.ReadUInt16();
                         carUpdate.Position = br.ReadUInt16(); // official P/Q/R position (1 based)
                         carUpdate.CupPosition = br.ReadUInt16(); // official P/Q/R position (1 based)
@@ -234,8 +236,8 @@ namespace ksBroadcastingNetwork
                             if ((DateTime.Now - lastEntrylistRequest).TotalSeconds > 1)
                             {
                                 lastEntrylistRequest = DateTime.Now;
-                                RequestEntryList();
-                                System.Diagnostics.Debug.WriteLine($"CarUpdate {carUpdate.CarIndex}|{carUpdate.DriverIndex} not know, will ask for new EntryList");
+                                RequestTrackData();
+                                Log.Debug($"CarUpdate {carUpdate.CarIndex}|{carUpdate.DriverIndex} not known, will ask for new EntryList");
                             }
                         }
                         else
@@ -279,6 +281,8 @@ namespace ksBroadcastingNetwork
                         trackData.HUDPages = hudPages;
 
                         OnTrackDataUpdate?.Invoke(ConnectionIdentifier, trackData);
+                        
+                        RequestEntryList();
                     }
                     break;
                 case InboundMessageTypes.BROADCASTING_EVENT:
@@ -286,12 +290,12 @@ namespace ksBroadcastingNetwork
                         BroadcastingEvent evt = new BroadcastingEvent()
                         {
                             Type = (BroadcastingCarEventType)br.ReadByte(),
-                            Msg = ReadString(br),
+                            Message = ReadString(br),
                             TimeMs = br.ReadInt32(),
-                            CarId = br.ReadInt32(),
+                            CarIndex = br.ReadInt32(),
                         };
 
-                        evt.CarData = _entryListCars.FirstOrDefault(x => x.CarIndex == evt.CarId);
+                        evt.CarData = _entryListCars.FirstOrDefault(x => x.CarIndex == evt.CarIndex);
                         OnBroadcastingEvent?.Invoke(ConnectionIdentifier, evt);
                     }
                     break;
@@ -306,7 +310,7 @@ namespace ksBroadcastingNetwork
         private static LapInfo ReadLap(BinaryReader br)
         {
             var lap = new LapInfo();
-            lap.LaptimeMS = br.ReadInt32();
+            lap.LapTimeMs = br.ReadInt32();
 
             lap.CarIndex = br.ReadUInt16();
             lap.DriverIndex = br.ReadUInt16();
@@ -340,8 +344,8 @@ namespace ksBroadcastingNetwork
                 if (lap.Splits[i] == Int32.MaxValue)
                     lap.Splits[i] = null;
 
-            if (lap.LaptimeMS == Int32.MaxValue)
-                lap.LaptimeMS = null;
+            if (lap.LapTimeMs == Int32.MaxValue)
+                lap.LapTimeMs = null;
 
             return lap;
         }
@@ -440,6 +444,41 @@ namespace ksBroadcastingNetwork
         public void SetFocus(UInt16 carIndex, string cameraSet, string camera)
         {
             SetFocusInternal(carIndex, cameraSet, camera);
+        }
+        
+        public void SetFocus(int carIndex = -1, string cameraSet = null, string camera = null)
+        {
+            if (ConnectionId == -1)
+                return;
+
+            SetFocusInternal(carIndex == -1 ? null : (ushort)carIndex, cameraSet, camera);
+            
+            /*Send(bw =>
+            {
+                bw.Write((byte)OutboundMessageTypes.CHANGE_FOCUS);
+                bw.Write(ConnectionId.Value);
+
+                if (carIndex >= 0)
+                {
+                    bw.Write((byte)1);
+                    bw.Write((ushort)carIndex);
+                }
+                else
+                {
+                    bw.Write((byte)0);
+                }
+
+                if (!string.IsNullOrEmpty(cameraSet) && !string.IsNullOrEmpty(camera))
+                {
+                    bw.Write((byte)1);
+                    WriteString(bw, cameraSet);
+                    WriteString(bw, camera);
+                }
+                else
+                {
+                    bw.Write((byte)0);
+                }
+            });*/
         }
 
         /// <summary>

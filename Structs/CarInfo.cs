@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AssettoCorsaSharedMemory;
 
 namespace ksBroadcastingNetwork.Structs
 {
@@ -10,6 +11,7 @@ namespace ksBroadcastingNetwork.Structs
     {
         public ushort CarIndex { get; }
         public byte CarModelType { get; internal set; }
+        public AssettoCorsa.CarModel ModelType { get; set; }
         public string TeamName { get; internal set; }
         public int RaceNumber { get; internal set; }
         public byte CupCategory { get; internal set; }
