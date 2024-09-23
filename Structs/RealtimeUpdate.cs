@@ -31,11 +31,7 @@ namespace ksBroadcastingNetwork.Structs
         public TimeSpan SessionEndTime { get; internal set; }
         public RaceSessionType SessionType { get; internal set; }
         public SessionPhase SessionPhase { get; set; }
-        
-        //TODO: Verify value is correct
         public float SessionTimeMs { get; set; }
-        
-        //TODO: Verify value is correct
         public float SessionEndTimeMs { get; set; }
         public byte AmbientTemp { get; internal set; }
         public byte TrackTemp { get; internal set; }

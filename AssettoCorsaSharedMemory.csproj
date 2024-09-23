@@ -85,10 +85,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ACCSharedMemoryGraphicsEnums.cs" />
-    <Compile Include="ACCUDPClient.cs" />
-    <Compile Include="ACCUDPConnector.cs" />
-    <Compile Include="ACCUDPEnums.cs" />
-    <Compile Include="ACCUDPModels.cs" />
     <Compile Include="ACCUdpRemoteClient.cs" />
     <Compile Include="AssettoCorsa.cs" />
     <Compile Include="BroadcastingEnums.cs" />

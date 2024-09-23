@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace ksBroadcastingNetwork.Structs
 {
@@ -14,13 +10,6 @@ namespace ksBroadcastingNetwork.Structs
         public ushort DriverIndex { get; internal set; }
         public bool IsInvalid { get; internal set; }
         public bool IsValidForBest { get; internal set; }
-        
-        //TODO: Verify value is correct
-        public bool IsOutlap { get; internal set; }
-        
-        //TODO: Verify value is correct
-        public bool IsInlap { get; internal set; }
-        
         public LapType Type { get; internal set; }
 
         public override string ToString()

@@ -14,6 +14,8 @@ namespace ksBroadcastingNetwork
         private Task _listenerTask;
         public BroadcastingNetworkProtocol MessageHandler { get; }
         public string IpPort { get; }
+        public string Ip { get; }
+        public int Port { get; }
         public string DisplayName { get; }
         public string ConnectionPassword { get; }
         public string CommandPassword { get; }
@@ -24,10 +26,12 @@ namespace ksBroadcastingNetwork
         /// </summary>
         public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval)
         {
+            Ip = ip;
+            Port = port;
             IpPort = $"{ip}:{port}";
             MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send);
             _client = new UdpClient();
-            _client.Connect(ip, port);
+            
 
             DisplayName = displayName;
             ConnectionPassword = connectionPassword;
@@ -37,6 +41,7 @@ namespace ksBroadcastingNetwork
 
         public void Start()
         {
+            _client.Connect(Ip, Port);
             _listenerTask = ConnectAndRun();
         }
 
@@ -52,7 +57,7 @@ namespace ksBroadcastingNetwork
                  if (t.Exception?.InnerExceptions?.Any() == true)
                      Log.Error($"Client shut down with {t.Exception.InnerExceptions.Count} errors");
                  else
-                     Log.Error("Client shut down asynchronously");
+                     Log.Verbose("Client shut down asynchronously");
 
              });
         }
@@ -63,6 +68,7 @@ namespace ksBroadcastingNetwork
             {
                 MessageHandler.Disconnect();
                 _client.Close();
+                _client.Dispose();
                 _client = null;
                 await _listenerTask;
             }
@@ -70,40 +76,48 @@ namespace ksBroadcastingNetwork
 
         private async Task ConnectAndRun()
         {
+            MessageHandler.Disconnect();
             MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
             while (_client != null)
             {
                 try
                 {
                     var udpPacket = await _client.ReceiveAsync();
-                    using (var ms = new System.IO.MemoryStream(udpPacket.Buffer))
-                    using (var reader = new System.IO.BinaryReader(ms))
-                    {
-                        MessageHandler.ProcessMessage(reader);
-                    }
+                    using var ms = new System.IO.MemoryStream(udpPacket.Buffer);
+                    using var reader = new System.IO.BinaryReader(ms);
+                    MessageHandler.ProcessMessage(reader);
                 }
                 catch (ObjectDisposedException ex)
                 {
                     // Shutdown happened
-                    Log.Warning("ACCUdpRemoteClient ConnectAndRun: {Message}", ex.Message);
-
+                    if (!disposingValue && !disposedValue)
+                        Log.Warning("ACCUdpRemoteClient ConnectAndRun ObjectDisposedException: {Message}", ex.Message);
+                    
                     break;
+                }
+                catch (SocketException ex)
+                {
+                    //An existing connection was forcibly closed by the remote host
+                    if (ex.ErrorCode != 10054)
+                        Log.Error(ex, "ACCUdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
                     // Other exceptions
-                    Log.Error(ex, "ConnectAndRun");
+                    Log.Error(ex, "ACCUdpRemoteClient ConnectAndRun Exception: " + ex.Message);
                 }
             }
         }
 
         #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+        private bool disposedValue;
+        private bool disposingValue;
 
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
             {
+                disposingValue = true;
                 if (disposing)
                 {
                     try
@@ -126,6 +140,7 @@ namespace ksBroadcastingNetwork
                 // TODO: set large fields to null.
 
                 disposedValue = true;
+                disposingValue = false;
             }
         }
 
