@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace ksBroadcastingNetwork.Structs
+namespace AssettoCorsaSharedMemory.Structs
 {
     public class LapInfo
     {

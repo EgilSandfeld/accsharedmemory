@@ -26,7 +26,7 @@ namespace AssettoCorsaSharedMemory
 
     public enum AC_MEMORY_STATUS { DISCONNECTED, CONNECTING, CONNECTED }
     
-    public class AssettoCorsa
+    public class ACCSharedMemory
     {
         private Timer sharedMemoryRetryTimer;
         private AC_MEMORY_STATUS memoryStatus = AC_MEMORY_STATUS.DISCONNECTED;
@@ -312,7 +312,7 @@ namespace AssettoCorsaSharedMemory
             { AC_STATUS.AC_REPLAY, "Replay" },
         };
 
-        public AssettoCorsa(int telemetryUpdateIntervalMs)
+        public ACCSharedMemory(int telemetryUpdateIntervalMs)
         {
             sharedMemoryRetryTimer = new Timer(2000);
             sharedMemoryRetryTimer.AutoReset = true;
@@ -358,7 +358,7 @@ namespace AssettoCorsaSharedMemory
                 physicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_physics");
                 graphicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_graphics");
                 staticInfoMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_static");
-
+                
                 // Start the timers
                 staticInfoTimer.Start();
                 ProcessStaticInfo();
@@ -414,6 +414,10 @@ namespace AssettoCorsaSharedMemory
             physicsTimer.Stop();
             graphicsTimer.Stop();
             staticInfoTimer.Stop();
+            
+            staticInfoMMF?.Dispose();
+            graphicsMMF?.Dispose();
+            physicsMMF?.Dispose();
         }
 
         /// <summary>

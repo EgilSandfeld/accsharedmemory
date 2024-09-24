@@ -1,11 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ksBroadcastingNetwork
+﻿namespace AssettoCorsaSharedMemory
 {
+	public enum OutboundMessageTypes : byte
+	{
+		REGISTER_COMMAND_APPLICATION = 1,
+		UNREGISTER_COMMAND_APPLICATION = 9,
+
+		REQUEST_ENTRY_LIST = 10,
+		REQUEST_TRACK_DATA = 11,
+
+		CHANGE_HUD_PAGE = 49,
+		CHANGE_FOCUS = 50,
+		INSTANT_REPLAY_REQUEST = 51,
+
+		PLAY_MANUAL_REPLAY_HIGHLIGHT = 52, // TODO, but planned
+		SAVE_MANUAL_REPLAY_HIGHLIGHT = 60 // TODO, but planned: saving manual replays gives distributed clients the possibility to see the play the same replay
+	}
+
+	public enum InboundMessageTypes : byte
+	{
+		REGISTRATION_RESULT = 1,
+		REALTIME_UPDATE = 2,
+		REALTIME_CAR_UPDATE = 3,
+		ENTRY_LIST = 4,
+		ENTRY_LIST_CAR = 6,
+		TRACK_DATA = 5,
+		BROADCASTING_EVENT = 7
+	}
+	
     public enum DriverCategory
     {
         Platinum = 3,

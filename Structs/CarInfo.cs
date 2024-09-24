@@ -1,17 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AssettoCorsaSharedMemory;
+﻿using System.Collections.Generic;
 
-namespace ksBroadcastingNetwork.Structs
+namespace AssettoCorsaSharedMemory.Structs
 {
     public class CarInfo
     {
         public ushort CarIndex { get; }
         public byte CarModelType { get; internal set; }
-        public AssettoCorsa.CarModel ModelType { get; set; }
+        public ACCSharedMemory.CarModel ModelType { get; set; }
         public string TeamName { get; internal set; }
         public int RaceNumber { get; internal set; }
         public byte CupCategory { get; internal set; }

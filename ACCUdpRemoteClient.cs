@@ -1,18 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
 using Serilog;
 
-namespace ksBroadcastingNetwork
+namespace AssettoCorsaSharedMemory
 {
     public class ACCUdpRemoteClient : IDisposable
     {
         private UdpClient _client;
         private Task _listenerTask;
-        public BroadcastingNetworkProtocol MessageHandler { get; }
+        public BroadcastingNetworkProtocol MessageHandler { get; set; }
         public string IpPort { get; }
         public string Ip { get; }
         public int Port { get; }
@@ -47,36 +45,11 @@ namespace ksBroadcastingNetwork
 
         private void Send(byte[] payload)
         {
-            var sent = _client.Send(payload, payload.Length);
-        }
-
-        public void Shutdown()
-        {
-            ShutdownAsnyc().ContinueWith(t =>
-             {
-                 if (t.Exception?.InnerExceptions?.Any() == true)
-                     Log.Error($"Client shut down with {t.Exception.InnerExceptions.Count} errors");
-                 else
-                     Log.Verbose("Client shut down asynchronously");
-
-             });
-        }
-
-        public async Task ShutdownAsnyc()
-        {
-            if (_listenerTask != null && !_listenerTask.IsCompleted)
-            {
-                MessageHandler.Disconnect();
-                _client.Close();
-                _client.Dispose();
-                _client = null;
-                await _listenerTask;
-            }
+            /*var sent = */_client.Send(payload, payload.Length);
         }
 
         private async Task ConnectAndRun()
         {
-            MessageHandler.Disconnect();
             MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
             while (_client != null)
             {
@@ -91,7 +64,7 @@ namespace ksBroadcastingNetwork
                 {
                     // Shutdown happened
                     if (!disposingValue && !disposedValue)
-                        Log.Warning("ACCUdpRemoteClient ConnectAndRun ObjectDisposedException: {Message}", ex.Message);
+                        Log.Warning("ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: {Message}", ex.Message);
                     
                     break;
                 }
@@ -99,17 +72,27 @@ namespace ksBroadcastingNetwork
                 {
                     //An existing connection was forcibly closed by the remote host
                     if (ex.ErrorCode != 10054)
-                        Log.Error(ex, "ACCUdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
+                        Log.Error(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
                     // Other exceptions
-                    Log.Error(ex, "ACCUdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+                    Log.Error(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
                 }
             }
         }
 
-        #region IDisposable Support
+        public Task Stop()
+        {
+            if (MessageHandler == null || MessageHandler.ConnectionId == -1)
+                return Task.CompletedTask;
+            
+            MessageHandler.Disconnect();
+            Dispose();
+            MessageHandler = null;
+            return Task.CompletedTask;
+        }
+
         private bool disposedValue;
         private bool disposingValue;
 
@@ -136,8 +119,8 @@ namespace ksBroadcastingNetwork
                     }
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
+                // free unmanaged resources (unmanaged objects) and override a finalizer below.
+                // set large fields to null.
 
                 disposedValue = true;
                 disposingValue = false;
@@ -149,15 +132,13 @@ namespace ksBroadcastingNetwork
         //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
         //   Dispose(false);
         // }
-
         // This code added to correctly implement the disposable pattern.
+
         public void Dispose()
         {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
+            // uncomment the following line if the finalizer is overridden above.
             // GC.SuppressFinalize(this);
         }
-        #endregion
     }
 }

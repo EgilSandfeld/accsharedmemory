@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace ksBroadcastingNetwork.Structs
+namespace AssettoCorsaSharedMemory.Structs
 {
     public struct RealtimeUpdate
     {
@@ -36,37 +32,5 @@ namespace ksBroadcastingNetwork.Structs
         public byte AmbientTemp { get; internal set; }
         public byte TrackTemp { get; internal set; }
         public string CurrentHudPage { get; internal set; }
-        
-        public static RealtimeUpdate Null() => new RealtimeUpdate
-        {
-            EventIndex = 0,
-            SessionIndex = 0,
-            Phase = default,
-            SessionTime = TimeSpan.Zero,
-            RemainingTime = TimeSpan.Zero,
-            TimeOfDay = TimeSpan.Zero,
-            TimeOfDaySeconds = 0f,
-            RainLevel = 0f,
-            Clouds = 0f,
-            Wetness = 0f,
-            BestSessionLap = null,
-            BestLapCarIndex = 0,
-            BestLapDriverIndex = 0,
-            FocusedCarIndex = 0,
-            ActiveCameraSet = null,
-            ActiveCamera = null,
-            IsReplayPlaying = false,
-            ReplaySessionTime = 0f,
-            ReplayRemainingTime = 0f,
-            SessionRemainingTime = TimeSpan.Zero,
-            SessionEndTime = TimeSpan.Zero,
-            SessionType = default,
-            SessionPhase = default,
-            AmbientTemp = 0,
-            TrackTemp = 0,
-            CurrentHudPage = null,
-            SessionTimeMs = 0f,
-            SessionEndTimeMs = -1
-        };
     }
 }
