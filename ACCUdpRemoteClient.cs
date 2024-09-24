@@ -39,6 +39,7 @@ namespace AssettoCorsaSharedMemory
 
         public void Start()
         {
+            Log.Debug("ACCUdpRemoteClient Start");
             _client.Connect(Ip, Port);
             _listenerTask = ConnectAndRun();
         }
@@ -50,7 +51,9 @@ namespace AssettoCorsaSharedMemory
 
         private async Task ConnectAndRun()
         {
-            MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
+            Log.Debug("ACCUdpRemoteClient RequestConnection with {AppName}", DisplayName);
+            RequestConnection();
+            
             while (_client != null)
             {
                 try
@@ -82,15 +85,38 @@ namespace AssettoCorsaSharedMemory
             }
         }
 
-        public Task Stop()
+        public void RequestConnection()
+        {
+            // if (DisplayName == null)
+            // {
+            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: DisplayName");
+            //     return;
+            // }
+            //
+            // if (ConnectionPassword == null)
+            // {
+            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: ConnectionPassword");
+            //     return;
+            // }
+            //
+            // if (CommandPassword == null)
+            // {
+            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: CommandPassword");
+            //     return;
+            // }
+            
+            MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
+        }
+
+        public async Task Stop()
         {
             if (MessageHandler == null || MessageHandler.ConnectionId == -1)
-                return Task.CompletedTask;
+                return;
             
             MessageHandler.Disconnect();
+            await Task.Delay(1000);
             Dispose();
             MessageHandler = null;
-            return Task.CompletedTask;
         }
 
         private bool disposedValue;

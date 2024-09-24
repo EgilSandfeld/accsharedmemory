@@ -5,6 +5,7 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Timers;
+using Serilog;
 
 namespace AssettoCorsaSharedMemory
 {
@@ -342,6 +343,7 @@ namespace AssettoCorsaSharedMemory
         public void Start()
         {
             sharedMemoryRetryTimer.Start();
+            Log.Debug("ACC SharedMemory Start");
         }
 
         void sharedMemoryRetryTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -385,10 +387,13 @@ namespace AssettoCorsaSharedMemory
 
         private void SetMemoryStatus(AC_MEMORY_STATUS status)
         {
-            if (memoryStatus == status)
-                return;
+            lock (_memoryStatusLock)
+            {
+                if (memoryStatus == status)
+                    return;
         
-            memoryStatus = status;
+                memoryStatus = status;
+            }
             var memoryStatusEventArgs = new MemoryStatusEventArgs(status);
             OnMemoryStatusChanged(memoryStatusEventArgs);
             
@@ -472,6 +477,7 @@ namespace AssettoCorsaSharedMemory
         Timer physicsTimer;
         Timer graphicsTimer;
         Timer staticInfoTimer;
+        private readonly object _memoryStatusLock = new ();
 
         /// <summary>
         /// Represents the method that will handle the physics update events

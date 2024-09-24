@@ -403,10 +403,15 @@ public class BroadcastingNetworkProtocol
         WriteString(br, commandPassword);
 
         Send(ms.ToArray());
+        
+        Log.Debug("ACCUdpRemoteClient RequestConnection sent for {DisplayName}", displayName);
+
     }
 
     internal void Disconnect()
     {
+        _firstTrackDataCts.Cancel();
+        
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
         br.Write((byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION); // First byte is always the command type
