@@ -343,7 +343,7 @@ namespace AssettoCorsaSharedMemory
         public void Start()
         {
             sharedMemoryRetryTimer.Start();
-            Log.Debug("ACC SharedMemory Start");
+            Log.ForContext("Context", "Sim").Verbose("ACC SharedMemory Start");
         }
 
         void sharedMemoryRetryTimer_Elapsed(object sender, ElapsedEventArgs e)

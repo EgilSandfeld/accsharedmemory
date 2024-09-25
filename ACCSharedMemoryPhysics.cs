@@ -536,12 +536,12 @@ namespace AssettoCorsaSharedMemory
         public float[] BrakePressure;
 
         /// <summary>
-        /// Brake pad compund front
+        /// Brake pad compound front
         /// </summary>
         public int FrontBrakeCompound;
 
         /// <summary>
-        /// Brake pad compund rear
+        /// Brake pad compound rear
         /// </summary>
         public int RearBrakeCompound;
 

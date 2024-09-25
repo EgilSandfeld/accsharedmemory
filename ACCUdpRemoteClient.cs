@@ -22,11 +22,12 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// To get the events delivered inside the UI thread, just create this object from the UI thread/synchronization context.
         /// </summary>
-        public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval)
+        public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval, Action<Exception, string, bool, bool> bugger)
         {
             Ip = ip;
             Port = port;
             IpPort = $"{ip}:{port}";
+            _bugger = bugger;
             MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send);
             _client = new UdpClient();
             
@@ -39,7 +40,7 @@ namespace AssettoCorsaSharedMemory
 
         public void Start()
         {
-            Log.Debug("ACCUdpRemoteClient Start");
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
             _client.Connect(Ip, Port);
             _listenerTask = ConnectAndRun();
         }
@@ -51,7 +52,7 @@ namespace AssettoCorsaSharedMemory
 
         private async Task ConnectAndRun()
         {
-            Log.Debug("ACCUdpRemoteClient RequestConnection with {AppName}", DisplayName);
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
             RequestConnection();
             
             while (_client != null)
@@ -67,7 +68,7 @@ namespace AssettoCorsaSharedMemory
                 {
                     // Shutdown happened
                     if (!disposingValue && !disposedValue)
-                        Log.Warning("ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: {Message}", ex.Message);
+                        Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
                     
                     break;
                 }
@@ -75,36 +76,23 @@ namespace AssettoCorsaSharedMemory
                 {
                     //An existing connection was forcibly closed by the remote host
                     if (ex.ErrorCode != 10054)
-                        Log.Error(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
+                        Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
                     // Other exceptions
-                    Log.Error(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+                    Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
                 }
             }
         }
 
-        public void RequestConnection()
+        private void Bug(Exception ex, string msg)
         {
-            // if (DisplayName == null)
-            // {
-            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: DisplayName");
-            //     return;
-            // }
-            //
-            // if (ConnectionPassword == null)
-            // {
-            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: ConnectionPassword");
-            //     return;
-            // }
-            //
-            // if (CommandPassword == null)
-            // {
-            //     Log.Warning("ACC UdpRemoteClient RequestConnection could not run due to missing: CommandPassword");
-            //     return;
-            // }
-            
+            _bugger?.Invoke(ex, msg, false, false);
+        }
+
+        private void RequestConnection()
+        {
             MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
         }
 
@@ -121,6 +109,7 @@ namespace AssettoCorsaSharedMemory
 
         private bool disposedValue;
         private bool disposingValue;
+        private readonly Action<Exception,string,bool,bool> _bugger;
 
         protected virtual void Dispose(bool disposing)
         {
@@ -141,7 +130,7 @@ namespace AssettoCorsaSharedMemory
                     }
                     catch (Exception ex)
                     {
-                        Log.Warning("ACCUdpRemoteClient Dispose: {Message}", ex.Message);
+                        Bug(ex, "ACCUdpRemoteClient Dispose: " + ex.Message);
                     }
                 }
 

@@ -145,7 +145,7 @@ public class BroadcastingNetworkProtocol
         var carInfo = _entryListCars.SingleOrDefault(x => x.CarIndex == carId);
         if (carInfo == null)
         {
-            Log.Debug($"Entry list update for unknown carIndex {carId}");
+            Log.ForContext("Context", "Sim").Verbose($"Entry list update for unknown carIndex {carId}");
             return;
         }
 
@@ -252,7 +252,7 @@ public class BroadcastingNetworkProtocol
             {
                 _lastEntryListRequest = DateTime.Now;
                 RequestEntryList();
-                Log.Debug($"CarUpdate {carUpdate.CarIndex}|{carUpdate.DriverIndex} not known, will ask for new EntryList");
+                Log.ForContext("Context", "Sim").Verbose($"CarUpdate {carUpdate.CarIndex}|{carUpdate.DriverIndex} not known, will ask for new EntryList");
             }
         }
         else
@@ -404,7 +404,7 @@ public class BroadcastingNetworkProtocol
 
         Send(ms.ToArray());
         
-        Log.Debug("ACCUdpRemoteClient RequestConnection sent for {DisplayName}", displayName);
+        Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient RequestConnection sent");
 
     }
 
@@ -431,7 +431,7 @@ public class BroadcastingNetworkProtocol
         br.Write((byte)OutboundMessageTypes.REQUEST_ENTRY_LIST); // First byte is always the command type
         br.Write(ConnectionId);
 
-        Log.Debug("RequestEntryList on ConnectionId {ConnectionId}...", ConnectionId);
+        Log.ForContext("Context", "Sim").Verbose("ACC RequestEntryList on ConnectionId {ConnectionId}...", ConnectionId);
         Send(ms.ToArray());
     }
 
@@ -442,7 +442,7 @@ public class BroadcastingNetworkProtocol
         br.Write((byte)OutboundMessageTypes.REQUEST_TRACK_DATA); // First byte is always the command type
         br.Write(ConnectionId);
 
-        Log.Debug("RequestTrackData on ConnectionId {ConnectionId}...", ConnectionId);
+        Log.ForContext("Context", "Sim").Verbose("ACC RequestTrackData on ConnectionId {ConnectionId}...", ConnectionId);
         Send(ms.ToArray());
 
         Task.Run(CheckRequestTrackDataSucceeded);
@@ -462,7 +462,7 @@ public class BroadcastingNetworkProtocol
         if (_lastTrackDataUpdateTime != DateTime.MinValue || _firstTrackDataCts.IsCancellationRequested)
             return;
             
-        Log.Debug("CheckRequestTrackDataSucceeded: Re-requesting track data (attempt {AttemptCount})...", _checkRequestTrackDataSucceededCount);
+        Log.ForContext("Context", "Sim").Verbose("ACC CheckRequestTrackDataSucceeded: Re-requesting track data (attempt {AttemptCount})...", _checkRequestTrackDataSucceededCount);
         RequestEntryList();
         RequestTrackData();
     }

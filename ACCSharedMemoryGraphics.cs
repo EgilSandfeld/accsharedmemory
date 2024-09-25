@@ -422,6 +422,7 @@ namespace AssettoCorsaSharedMemory
 
         /// <summary>
         /// # of tyre set on the MFD
+        /// 0-indexed
         /// </summary>
         public int MFDTyreSet;
 
@@ -473,12 +474,12 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Tyre Set currently in use
         /// 1-indexed
-        /// Equals the value in pit menu
         /// </summary>
         public int CurrentTyreSet;
 
         /// <summary>
         /// Next Tyre set per strategy
+        /// TODO: Check if this is instead 'Pit Strategy' number
         /// </summary>
         public int StrategyTyreSet;
 
