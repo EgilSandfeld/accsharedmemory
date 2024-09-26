@@ -185,7 +185,7 @@ public class BroadcastingNetworkProtocol
         update.EventIndex = (int)br.ReadUInt16();
         update.SessionIndex = (int)br.ReadUInt16();
         update.SessionType = (RaceSessionType)br.ReadByte();
-        update.Phase = (SessionPhase)br.ReadByte();
+        update.SessionState = (SessionPhase)br.ReadByte();
         var sessionTime = br.ReadSingle();
         update.SessionTime = TimeSpan.FromMilliseconds(sessionTime);
         update.SessionTimeMs = sessionTime;

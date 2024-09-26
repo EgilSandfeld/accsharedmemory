@@ -6,7 +6,7 @@ namespace AssettoCorsaSharedMemory.Structs
     {
         public int EventIndex { get; internal set; }
         public int SessionIndex { get; internal set; }
-        public SessionPhase Phase { get; internal set; }
+        public SessionPhase SessionState { get; internal set; }
         public TimeSpan SessionTime { get; internal set; }
         public TimeSpan RemainingTime { get; internal set; }
         public TimeSpan TimeOfDay { get; internal set; }
@@ -26,7 +26,6 @@ namespace AssettoCorsaSharedMemory.Structs
         public TimeSpan SessionRemainingTime { get; internal set; }
         public TimeSpan SessionEndTime { get; internal set; }
         public RaceSessionType SessionType { get; internal set; }
-        public SessionPhase SessionPhase { get; set; }
         public float SessionTimeMs { get; set; }
         public float SessionEndTimeMs { get; set; }
         public byte AmbientTemp { get; internal set; }

@@ -146,7 +146,7 @@ namespace AssettoCorsaSharedMemory
         public float TC;
 
         /// <summary>
-        /// Car yaw orientation
+        /// Car yaw orientation in radians
         /// </summary>
         public float Heading;
 
