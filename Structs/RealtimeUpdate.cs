@@ -4,6 +4,7 @@ namespace AssettoCorsaSharedMemory.Structs
 {
     public struct RealtimeUpdate
     {
+        public bool HasValue => ActiveCamera != null;
         public int EventIndex { get; internal set; }
         public int SessionIndex { get; internal set; }
         public SessionPhase SessionState { get; internal set; }
