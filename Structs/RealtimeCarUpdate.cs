@@ -1,4 +1,6 @@
-﻿namespace AssettoCorsaSharedMemory.Structs
+﻿using Newtonsoft.Json;
+
+namespace AssettoCorsaSharedMemory.Structs
 {
     public struct RealtimeCarUpdate
     {
@@ -20,5 +22,10 @@
         public int Laps { get; internal set; }
         public ushort CupPosition { get; internal set; }
         public byte DriverCount { get; internal set; }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }

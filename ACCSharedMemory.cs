@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.MemoryMappedFiles;
@@ -29,10 +30,13 @@ namespace AssettoCorsaSharedMemory
     
     public class ACCSharedMemory
     {
+        public static ACCSharedMemory Instance;
         private Timer sharedMemoryRetryTimer;
         private AC_MEMORY_STATUS memoryStatus = AC_MEMORY_STATUS.DISCONNECTED;
         public bool IsConnected => (memoryStatus == AC_MEMORY_STATUS.CONNECTED);
         public bool IsRunning => (memoryStatus is AC_MEMORY_STATUS.CONNECTING || memoryStatus is AC_MEMORY_STATUS.CONNECTED);
+
+        private ACCSharedMemoryGraphics _accSharedMemoryGraphics;
 
         private AC_STATUS gameStatus = AC_STATUS.AC_OFF;
         private int pitStatus = 1;
@@ -315,6 +319,8 @@ namespace AssettoCorsaSharedMemory
 
         public ACCSharedMemory(int telemetryUpdateIntervalMs)
         {
+            Instance = this;
+            
             sharedMemoryRetryTimer = new Timer(2000);
             sharedMemoryRetryTimer.AutoReset = true;
             sharedMemoryRetryTimer.Elapsed += sharedMemoryRetryTimer_Elapsed;
@@ -563,8 +569,8 @@ namespace AssettoCorsaSharedMemory
 
             try
             {
-                ACCSharedMemoryGraphics accSharedMemoryGraphics = ReadGraphics();
-                OnGraphicsUpdated(new GraphicsEventArgs(accSharedMemoryGraphics));
+                _accSharedMemoryGraphics = ReadGraphics();
+                OnGraphicsUpdated(new GraphicsEventArgs(_accSharedMemoryGraphics));
             }
             catch (AssettoCorsaNotStartedException)
             { }
@@ -656,6 +662,91 @@ namespace AssettoCorsaSharedMemory
             sb.AppendLine($"gameStatus;{gameStatus}");
             
             return sb.ToString();
+        }
+        
+        private readonly ConcurrentDictionary<int, float> _rainLevels = new();
+        private const float PrecipDiffThreshold = 0.05f;
+        private const float CloudCoverStartForPrecipTransition = 0.5f;
+        private const float CloudCoverMinForPrecipStart = 0.6f;
+
+        public float GetClouds(double sessionTimeElapsed, float trackToAmbientTempDelta)
+        {
+            if (_accSharedMemoryGraphics.Split == null)
+                return 0;
+            
+            var precipNow = _accSharedMemoryGraphics.GetPrecipitation();
+            var precip5MinAgo = precipNow;
+            var minutesElapsed = (int)Math.Floor(sessionTimeElapsed / 60d);
+            if (minutesElapsed >= 5 && _rainLevels.TryGetValue(minutesElapsed - 5, out var storedPrecip5Min))
+            {
+                precip5MinAgo = storedPrecip5Min;
+            }
+        
+            _rainLevels[minutesElapsed] = precipNow;
+        
+            var precip10Min = ACCSharedMemoryConverters.RainIntensityEnumToFloat(_accSharedMemoryGraphics.RainIntensityIn10Min);
+        
+            var clouds = 0f;
+            var isPrecip = Math.Abs(precipNow) >= 0.0001f;
+            // if (Math.Abs(precipNow - precip5MinAgo) < PrecipDiffThreshold && Math.Abs(precip10Min - precipNow) < PrecipDiffThreshold)
+            //     clouds = PrecipToClouds(precipNow);
+        
+            //Raining now, so trust precipNow
+            if (isPrecip)
+            {
+                clouds = PrecipToClouds(precipNow);
+                return clouds;
+            }
+        
+            //When no rain right now, but we've exited a rain cell, we still have a few clouds
+            if (precip5MinAgo > 0f)
+            {     
+                clouds = PrecipTransitionToClouds(precip5MinAgo / 2f); //averaging precipNow and precip5MinAgo (but precipNow is known to be 0, so omitted from addition)
+                return clouds;
+            }
+        
+            //When no rain right now, but we're expecting rain in 10 minutes, clouds are building up
+            if (precip5MinAgo > 0f)
+            {
+                clouds = PrecipTransitionToClouds(precip10Min / 2f); //averaging precipNow and precip5MinAgo (but precipNow is known to be 0, so omitted from addition)
+                return clouds;
+            }
+
+            if (trackToAmbientTempDelta < 0f)
+                trackToAmbientTempDelta = 0f;
+            
+            //Fully sunny - hot track compared to ambient == clear skies
+            if (trackToAmbientTempDelta > 10f)
+            {
+                clouds = 0;
+                return clouds;
+            }
+            
+            //Linearly scale trackToAmbientTempDelta from range 0 - 10 to CloudCoverMinForPrecipStart - 0
+            clouds = CloudCoverStartForPrecipTransition - (trackToAmbientTempDelta / 10f) * CloudCoverStartForPrecipTransition;
+            return clouds;
+        }
+
+        private float PrecipToClouds(float precip)
+        {
+            if (precip >= 1f)
+                return 1f;
+    
+            if (precip <= 0f)
+                return CloudCoverMinForPrecipStart;
+    
+            return CloudCoverMinForPrecipStart + (1f - CloudCoverMinForPrecipStart) * precip;
+        }
+
+        private float PrecipTransitionToClouds(float precipTransition)
+        {
+            if (precipTransition >= 0.5f)
+                return CloudCoverMinForPrecipStart;
+    
+            if (precipTransition <= 0f)
+                return CloudCoverStartForPrecipTransition;
+    
+            return CloudCoverStartForPrecipTransition + (precipTransition / 0.5f) * (CloudCoverMinForPrecipStart - CloudCoverStartForPrecipTransition);
         }
     }
 }

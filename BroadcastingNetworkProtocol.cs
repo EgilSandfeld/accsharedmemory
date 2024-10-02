@@ -185,13 +185,13 @@ public class BroadcastingNetworkProtocol
         update.EventIndex = (int)br.ReadUInt16();
         update.SessionIndex = (int)br.ReadUInt16();
         update.SessionType = (RaceSessionType)br.ReadByte();
-        update.SessionState = (SessionPhase)br.ReadByte();
+        update.Phase = (SessionPhase)br.ReadByte();
         var sessionTime = br.ReadSingle();
         update.SessionTime = TimeSpan.FromMilliseconds(sessionTime);
-        update.SessionTimeMs = sessionTime;
+        //update.SessionTimeMs = sessionTime;
         var sessionEndTime = br.ReadSingle();
         update.SessionEndTime = TimeSpan.FromMilliseconds(sessionEndTime);
-        update.SessionEndTimeMs = sessionEndTime;
+        //update.SessionEndTimeMs = sessionEndTime;
 
         update.FocusedCarIndex = br.ReadInt32();
         update.ActiveCameraSet = ReadString(br);
@@ -205,12 +205,13 @@ public class BroadcastingNetworkProtocol
             update.ReplayRemainingTime = br.ReadSingle();
         }
 
-        update.TimeOfDay = TimeSpan.FromMilliseconds(br.ReadSingle());
+        var rawTimeOfDay = br.ReadSingle();
+        update.TimeOfDay = TimeSpan.FromSeconds(rawTimeOfDay);
         update.AmbientTemp = br.ReadByte();
         update.TrackTemp = br.ReadByte();
-        update.Clouds = br.ReadByte() / 10.0f;
-        update.RainLevel = br.ReadByte() / 10.0f;
-        update.Wetness = br.ReadByte() / 10.0f;
+        /*update.Clouds = */br.ReadByte()/* / 10.0f*/;
+        /*update.RainLevel = */br.ReadByte()/* / 10.0f*/;
+        /*update.Wetness = */br.ReadByte()/* / 10.0f*/;
 
         update.BestSessionLap = ReadLap(br);
 

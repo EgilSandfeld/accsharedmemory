@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Newtonsoft.Json;
 
@@ -496,6 +497,16 @@ namespace AssettoCorsaSharedMemory
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this);
+        }
+
+        public float GetPrecipitation()
+        {
+            return ACCSharedMemoryConverters.RainIntensityEnumToFloat(RainIntensity);
+        }
+
+        public float Wetness()
+        {
+            return ACCSharedMemoryConverters.TrackGripStatusEnumToWetnessFloat(TrackGripStatus);
         }
     }
 }

@@ -4,17 +4,39 @@ namespace AssettoCorsaSharedMemory.Structs
 {
     public struct RealtimeUpdate
     {
-        public bool HasValue => ActiveCamera != null;
         public int EventIndex { get; internal set; }
         public int SessionIndex { get; internal set; }
-        public SessionPhase SessionState { get; internal set; }
+        public SessionPhase Phase { get; internal set; }
         public TimeSpan SessionTime { get; internal set; }
         public TimeSpan RemainingTime { get; internal set; }
         public TimeSpan TimeOfDay { get; internal set; }
-        public float TimeOfDaySeconds { get; set; }
+        
+        /// <summary>
+        /// Deprecated as of March 2021
+        /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-11#post-1189353
+        /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-12#post-1190529
+        /// </summary>
+        [Obsolete("Use Graphics.RainIntensity instead")]
         public float RainLevel { get; internal set; }
+        
+        
+        /// <summary>
+        /// Deprecated as of March 2021
+        /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-11#post-1189353
+        /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-12#post-1190529
+        /// </summary>
+        [Obsolete("Use Graphics.RainIntensity and blending Graphics.RainIntensityIn10Min instead")]
         public float Clouds { get; internal set; }
+        
+        
+        /// <summary>
+        /// Deprecated as of March 2021
+        /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-11#post-1189353
+        /// /// https://www.assettocorsa.net/forum/index.php?threads/lets-talk-about-broadcasting-programmers-thread.53826/page-12#post-1190529
+        /// </summary>
+        [Obsolete("Use Graphics.TrackGripStatus instead")]
         public float Wetness { get; internal set; }
+        
         public LapInfo BestSessionLap { get; internal set; }
         public ushort BestLapCarIndex { get; internal set; }
         public ushort BestLapDriverIndex { get; internal set; }
@@ -27,10 +49,23 @@ namespace AssettoCorsaSharedMemory.Structs
         public TimeSpan SessionRemainingTime { get; internal set; }
         public TimeSpan SessionEndTime { get; internal set; }
         public RaceSessionType SessionType { get; internal set; }
-        public float SessionTimeMs { get; set; }
-        public float SessionEndTimeMs { get; set; }
         public byte AmbientTemp { get; internal set; }
         public byte TrackTemp { get; internal set; }
         public string CurrentHudPage { get; internal set; }
+        
+        public bool HasValue()
+        {
+            return ActiveCamera != null;
+        }
+
+        public float GetSessionTimeMs()
+        {
+            return (float)SessionTime.TotalMilliseconds;
+        }
+        public float GetSessionEndTimeMs()
+        {
+            return (float)SessionEndTime.TotalMilliseconds;
+        }
+
     }
 }
