@@ -131,14 +131,15 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Number of cars on track
         /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
+        /// NOT AVAILABLE IN AC DOCUMENTATION
         /// ONLY ACC
         /// </para>
         /// </summary>
         public int ActiveCars;
 
         /// <summary>
-        /// Coordinates of cars on track, expressed in meters
+        /// Coordinates of cars on track (not world meters!)
+        /// Used for rendering the car's position on the track map or minimap, which is a 2D representation. This requires transforming the 3D world positions into 2D coordinates that fit within the map's display area.
         /// <para>
         /// AC DOCUMENTATION ONLY SHOWS ONE CAR VALUE
         /// ACC SHOWS 60 CAR VALUES
@@ -150,7 +151,7 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Car IDs of cars on track
         /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
+        /// NOT AVAILABLE IN AC DOCUMENTATION
         /// ONLY ACC
         /// </para>
         /// </summary>
@@ -160,7 +161,7 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Player Car ID
         /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
+        /// NOT AVAILABLE IN AC DOCUMENTATION
         /// ONLY ACC
         /// </para>
         /// </summary>
@@ -179,7 +180,7 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Penalty type and reason
         /// <para>
-        /// NOTE SHOWN IN AC DOCUMENTATION
+        /// NOT AVAILABLE IN AC DOCUMENTATION
         /// ONLY ACC
         /// </para>
         /// </summary>

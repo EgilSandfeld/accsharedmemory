@@ -406,6 +406,7 @@ public class BroadcastingNetworkProtocol
         Send(ms.ToArray());
         
         Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient RequestConnection sent");
+        Log.ForContext("Context", "Sim").Information("Waiting for ACC connection...");
 
     }
 
@@ -463,7 +464,9 @@ public class BroadcastingNetworkProtocol
         if (_lastTrackDataUpdateTime != DateTime.MinValue || _firstTrackDataCts.IsCancellationRequested)
             return;
             
-        Log.ForContext("Context", "Sim").Verbose("ACC CheckRequestTrackDataSucceeded: Re-requesting track data (attempt {AttemptCount})...", _checkRequestTrackDataSucceededCount);
+        //Log.ForContext("Context", "Sim").Verbose("ACC CheckRequestTrackDataSucceeded: Re-requesting track data (attempt #{AttemptCount})...", _checkRequestTrackDataSucceededCount);
+        Log.ForContext("Context", "Sim").Information("Waiting for ACC track & entry lists data (attempt #{AttemptCount})...", _checkRequestTrackDataSucceededCount);
+
         RequestEntryList();
         RequestTrackData();
     }
