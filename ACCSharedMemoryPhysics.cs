@@ -147,6 +147,7 @@ namespace AssettoCorsaSharedMemory
 
         /// <summary>
         /// Car yaw orientation in radians
+        /// Range: -Pi to Pi
         /// </summary>
         public float Heading;
 

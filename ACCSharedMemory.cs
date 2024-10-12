@@ -243,6 +243,53 @@ namespace AssettoCorsaSharedMemory
             {CarModel.porsche_992_gt3_cup, 270}
         };
 
+        public static readonly Dictionary<CarModel, Dimension> CarDimensionsMillimeters = new()
+        {
+            { CarModel.alpine_a110_gt4, new (4178, 1798)},
+            { CarModel.amr_v12_vantage_gt3, new (4760, 1979)},
+            { CarModel.amr_v8_vantage_gt3, new (4760, 2040)}, //Couldn't find it, found Aston Martin V12 Vantage GT3 2012 instead: https://gran-turismo.fandom.com/wiki/Aston_Martin_V12_Vantage_GT3_%2712
+            { CarModel.amr_v8_vantage_gt4, new (4380, 1865)},
+            { CarModel.audi_r8_gt4, new (4467, 1940)},
+            { CarModel.audi_r8_lms, new (4583, 1997)},
+            { CarModel.audi_r8_lms_evo, new (4599, 1997)},
+            { CarModel.audi_r8_lms_evo_ii, new (4599, 1997)},
+            { CarModel.bentley_continental_gt3_2016, new (4806, 1944)},
+            { CarModel.bentley_continental_gt3_2018, new (4860, 2045)},
+            { CarModel.bmw_m2_cs_racing, new (4461, 1990)},
+            { CarModel.bmw_m4_gt3, new (5020, 2040)},
+            { CarModel.bmw_m4_gt4, new (4863, 2093)},
+            { CarModel.bmw_m6_gt3, new (4944, 2046)},
+            { CarModel.chevrolet_camaro_gt4r, new (4783, 1897)},
+            { CarModel.ferrari_488_challenge_evo, new (4568, 1952)},
+            { CarModel.ferrari_488_gt3, new (4633, 2045)},
+            { CarModel.ferrari_488_gt3_evo, new (4633, 2045)},
+            { CarModel.ginetta_g55_gt4, new (4358, 1900)},
+            { CarModel.honda_nsx_gt3, new (4612, 2040)},
+            { CarModel.honda_nsx_gt3_evo, new ( 4612, 2040)},
+            { CarModel.jaguar_g3, new (4793, 1892)}, //Unsure, Emil Frey XKR G3 conversion from: https://en.wikipedia.org/wiki/Jaguar_XK_(X150)
+            { CarModel.ktm_xbow_gt4, new (3738, 1900)},
+            { CarModel.lamborghini_gallardo_rex, new (4300, 1920)},
+            { CarModel.lamborghini_huracan_gt3, new (4458, 2050)},
+            { CarModel.lamborghini_huracan_gt3_evo, new (4551, 2221)},
+            { CarModel.lamborghini_huracan_st, new (4549, 1945)},
+            { CarModel.lamborghini_huracan_st_evo2, new (4551, 2221)},
+            { CarModel.lexus_rc_f_gt3, new (4705, 2000)},
+            { CarModel.maserati_mc_gt4, new (4930, 1920)}, //Unsure: https://fastestlaps.com/models/maserati-granturismo-mc-stradale
+            { CarModel.mclaren_570s_gt4, new (4606, 2095)},
+            { CarModel.mclaren_650s_gt3, new (4534, 2040)},
+            { CarModel.mclaren_720s_gt3, new (4664, 2040)},
+            { CarModel.mercedes_amg_gt3, new (4710, 1990)},
+            { CarModel.mercedes_amg_gt3_evo, new (4746, 2049)},
+            { CarModel.mercedes_amg_gt4, new (4619, 1996)},
+            { CarModel.nissan_gt_r_gt3_2017, new (4690, 1895)},
+            { CarModel.nissan_gt_r_gt3_2018, new (4690, 1895)},
+            { CarModel.porsche_718_cayman_gt4_mr, new (4456, 1778)},
+            { CarModel.porsche_991_gt3_r, new (4604, 2002) }, //2018 https://www.stuttcars.com/porsche-911-gt3-r-991-2016-2018/
+            { CarModel.porsche_991ii_gt3_cup, new (4564, 1980) },
+            { CarModel.porsche_991ii_gt3_r, new (4629, 2002)},
+            { CarModel.porsche_992_gt3_cup, new (4585, 1920)}
+        };
+
         public event MemoryStatusChangedHandler MemoryStatusChanged;
         public virtual void OnMemoryStatusChanged(MemoryStatusEventArgs e)
         {

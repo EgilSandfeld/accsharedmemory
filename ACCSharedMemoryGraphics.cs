@@ -218,7 +218,8 @@ namespace AssettoCorsaSharedMemory
         public float WindSpeed;
 
         /// <summary>
-        /// Wind direction in radians
+        /// Wind direction in degrees relative to North
+        /// Range: 0 to 360
         /// </summary>
         public float WindDirection;
 
