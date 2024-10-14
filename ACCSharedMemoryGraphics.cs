@@ -80,7 +80,7 @@ namespace AssettoCorsaSharedMemory
         public int iBestTime;
 
         /// <summary>
-        /// Session time left
+        /// Session time left in milliseconds
         /// </summary>
         public float SessionTimeLeft;
 
