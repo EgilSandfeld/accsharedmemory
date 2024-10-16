@@ -482,7 +482,6 @@ namespace AssettoCorsaSharedMemory
 
         /// <summary>
         /// Next Tyre set per strategy
-        /// TODO: Check if this is instead 'Pit Strategy' number
         /// </summary>
         public int StrategyTyreSet;
 
