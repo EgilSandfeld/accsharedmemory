@@ -150,6 +150,8 @@ public class BroadcastingNetworkProtocol
         }
 
         carInfo.CarModelType = br.ReadByte(); // Byte sized car model
+        carInfo.ModelType = (ACCSharedMemory.CarModel)carInfo.CarModelType;
+        
         carInfo.TeamName = ReadString(br);
         carInfo.RaceNumber = br.ReadInt32();
         carInfo.CupCategory = br.ReadByte(); // Cup: Overall/Pro = 0, ProAm = 1, Am = 2, Silver = 3, National = 4
