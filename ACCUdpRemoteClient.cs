@@ -142,7 +142,7 @@ namespace AssettoCorsaSharedMemory
             }
         }
 
-        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+        // TO DO?: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
         // ~ACCUdpRemoteClient() {
         //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
         //   Dispose(false);
