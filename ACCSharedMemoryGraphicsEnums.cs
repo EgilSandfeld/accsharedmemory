@@ -36,10 +36,10 @@ namespace AssettoCorsaSharedMemory
         AC_NO_FLAG = 0,
         AC_BLUE_FLAG = 1,
         AC_YELLOW_FLAG = 2,
-        AC_BLACK_FLAG = 3,
-        AC_WHITE_FLAG = 4,
+        AC_BLACK_FLAG = 3, //Disqualified
+        AC_WHITE_FLAG = 4, //Last lap
         AC_CHECKERED_FLAG = 5,
-        AC_PENALTY_FLAG = 6,
+        AC_PENALTY_FLAG = 6, //"Black" flag for penalties
         AC_GREEN_FLAG = 7,
         AC_ORANGE_FLAG = 8
     }
