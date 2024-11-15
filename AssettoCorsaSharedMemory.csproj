@@ -92,6 +92,7 @@
     <Compile Include="BroadcastingNetworkProtocol.cs" />
     <Compile Include="Coordinates.cs" />
     <Compile Include="Dimension.cs" />
+    <Compile Include="Helpers.cs" />
     <Compile Include="StaticCarData.cs" />
     <Compile Include="GameStatusEventArgs.cs" />
     <Compile Include="ACCSharedMemoryGraphics.cs" />
