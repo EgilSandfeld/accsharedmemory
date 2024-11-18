@@ -22,13 +22,13 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// To get the events delivered inside the UI thread, just create this object from the UI thread/synchronization context.
         /// </summary>
-        public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval, Action<Exception, string, bool, bool> bugger)
+        public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval, Action<Exception, string, bool, bool> bugger, int previousConnectionId)
         {
             Ip = ip;
             Port = port;
             IpPort = $"{ip}:{port}";
             _bugger = bugger;
-            MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send);
+            MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId);
             _client = new UdpClient();
             
 
@@ -49,12 +49,22 @@ namespace AssettoCorsaSharedMemory
         {
             /*var sent = */_client.Send(payload, payload.Length);
         }
-
+        
         private async Task ConnectAndRun()
         {
             Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
+
+            // Start the receive loop
+            var receiveTask = ReceiveLoop();
+
+            // Immediately send connection request after starting the listener
             RequestConnection();
-            
+
+            await receiveTask; // Keep the task alive to continue listening
+        }
+
+        private async Task ReceiveLoop()
+        {
             while (_client != null)
             {
                 try
@@ -66,7 +76,6 @@ namespace AssettoCorsaSharedMemory
                 }
                 catch (ObjectDisposedException ex)
                 {
-                    // Shutdown happened
                     if (!disposingValue && !disposedValue)
                         Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
                     
@@ -74,17 +83,51 @@ namespace AssettoCorsaSharedMemory
                 }
                 catch (SocketException ex)
                 {
-                    //An existing connection was forcibly closed by the remote host
                     if (ex.ErrorCode != 10054)
                         Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
-                    // Other exceptions
                     Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
                 }
             }
         }
+
+        // private async Task ConnectAndRun()
+        // {
+        //     Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
+        //     RequestConnection();
+        //     
+        //     while (_client != null)
+        //     {
+        //         try
+        //         {
+        //             var udpPacket = await _client.ReceiveAsync();
+        //             using var ms = new System.IO.MemoryStream(udpPacket.Buffer);
+        //             using var reader = new System.IO.BinaryReader(ms);
+        //             MessageHandler.ProcessMessage(reader);
+        //         }
+        //         catch (ObjectDisposedException ex)
+        //         {
+        //             // Shutdown happened
+        //             if (!disposingValue && !disposedValue)
+        //                 Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
+        //             
+        //             break;
+        //         }
+        //         catch (SocketException ex)
+        //         {
+        //             //An existing connection was forcibly closed by the remote host
+        //             if (ex.ErrorCode != 10054)
+        //                 Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             // Other exceptions
+        //             Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+        //         }
+        //     }
+        // }
 
         private void Bug(Exception ex, string msg)
         {

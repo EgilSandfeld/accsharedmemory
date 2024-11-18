@@ -56,11 +56,12 @@ public class BroadcastingNetworkProtocol
     private DateTime _lastTrackDataUpdateTime;
 
 
-    internal BroadcastingNetworkProtocol(string connectionIdentifier, SendMessageDelegate sendMessageDelegate)
+    internal BroadcastingNetworkProtocol(string connectionIdentifier, SendMessageDelegate sendMessageDelegate, int previousConnectionId)
     {
         if (string.IsNullOrEmpty(connectionIdentifier))
             throw new ArgumentNullException(nameof(connectionIdentifier), "No connection identifier set; we use this to distinguish different connections. Using the remote IP:Port is a good idea");
 
+        ConnectionId = previousConnectionId;
         ConnectionIdentifier = connectionIdentifier;
         Send = sendMessageDelegate ?? throw new ArgumentNullException(nameof(sendMessageDelegate), "The protocol class doesn't know anything about the network layer; please put a callback we can use to send data via UDP");
     }
@@ -115,6 +116,11 @@ public class BroadcastingNetworkProtocol
 
     private void OnRegistrationResult(BinaryReader br)
     {
+        if (ConnectionId > -1)
+        {
+            Log.ForContext("Context", "Sim").Verbose("ACC UDP OnRegistrationResult: ConnectionId already set: {ConnectionId} (maybe a disconnect event)", ConnectionId);
+        }
+        
         ConnectionId = br.ReadInt32();
         var connectionSuccess = br.ReadByte() > 0;
         var isReadonly = br.ReadByte() == 0;
@@ -397,6 +403,14 @@ public class BroadcastingNetworkProtocol
     {
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
+        
+        if (ConnectionId > -1)
+        {
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
+            Disconnect();
+            //return;
+        }
+        
         br.Write((byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION); // First byte is always the command type
         br.Write((byte)BROADCASTING_PROTOCOL_VERSION);
 
@@ -414,11 +428,14 @@ public class BroadcastingNetworkProtocol
 
     internal void Disconnect()
     {
-        _firstTrackDataCts.Cancel();
+        _firstTrackDataCts?.Cancel();
         
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
-        br.Write((byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION); // First byte is always the command type
+        br.Write((byte)OutboundMessageTypes.UNREGISTER_COMMAND_APPLICATION);
+        if (ConnectionId > -1)
+            br.Write((int)ConnectionId); //Keep (int) here just for any reason
+        
         Send(ms.ToArray());
     }
 
