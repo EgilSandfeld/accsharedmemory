@@ -231,7 +231,8 @@ public class BroadcastingNetworkProtocol
         if (OnRealtimeCarUpdated == null)
             return;
 
-        RealtimeCarUpdate carUpdate = new RealtimeCarUpdate();
+        // ReSharper disable once UseObjectOrCollectionInitializer
+        var carUpdate = new RealtimeCarUpdate();
 
         carUpdate.CarIndex = br.ReadUInt16();
         carUpdate.DriverIndex = br.ReadUInt16(); // Driver swap will make this change
@@ -252,7 +253,7 @@ public class BroadcastingNetworkProtocol
         carUpdate.BestSessionLap = ReadLap(br);
         carUpdate.LastLap = ReadLap(br);
         carUpdate.CurrentLap = ReadLap(br);
-
+        
         // the concept is: "don't know a car or driver? ask for an entry list update"
         var carEntry = _entryListCars.FirstOrDefault(x => x.CarIndex == carUpdate.CarIndex);
         if (carEntry == null || carEntry.Drivers.Count != carUpdate.DriverCount)

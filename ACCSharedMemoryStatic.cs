@@ -300,8 +300,6 @@ namespace AssettoCorsaSharedMemory
         /// </summary>
         public int PitWindowEnd;
 
-        //Since ???
-
         /// <summary>
         /// If is a multiplayer session
         /// </summary>
