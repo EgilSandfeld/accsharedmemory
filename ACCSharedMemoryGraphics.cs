@@ -404,7 +404,8 @@ namespace AssettoCorsaSharedMemory
         public int GlobalYellow3;
 
         /// <summary>
-        /// White Flag is out?
+        /// White Flag is out for the last lap
+        /// Don't confuse this with LOCAL white flags called by graphics.Flag == AC_FLAG_TYPE.AC_WHITE_FLAG, meaning slow vehicle on track
         /// </summary>
         public int GlobalWhite;
 
