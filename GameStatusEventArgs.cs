@@ -31,6 +31,16 @@ namespace AssettoCorsaSharedMemory
 
         public ACCSharedMemoryGraphics ACCSharedMemoryGraphics { get; private set; }
     }
+
+    public class EvoGraphicsEventArgs : EventArgs
+    {
+        public EvoGraphicsEventArgs(ACCSharedMemoryGraphics acEvoSharedMemoryGraphics)
+        {
+            ACEvoSharedMemoryGraphics = acEvoSharedMemoryGraphics;
+        }
+
+        public ACCSharedMemoryGraphics ACEvoSharedMemoryGraphics { get; private set; }
+    }
     
     public class MemoryStatusEventArgs : EventArgs
     {
@@ -46,6 +56,15 @@ namespace AssettoCorsaSharedMemory
         public AC_STATUS GameStatus {get; private set;}
 
         public GameStatusEventArgs(AC_STATUS status)
+        {
+            GameStatus = status;
+        }
+    }
+    public class EvoGameStatusEventArgs : EventArgs
+    {
+        public int GameStatus {get; private set;}
+
+        public EvoGameStatusEventArgs(int status)
         {
             GameStatus = status;
         }

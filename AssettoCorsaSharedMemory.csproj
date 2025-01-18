@@ -89,6 +89,8 @@
     <Compile Include="ACCSharedMemoryGraphicsEnums.cs" />
     <Compile Include="ACCUdpRemoteClient.cs" />
     <Compile Include="ACCSharedMemory.cs" />
+    <Compile Include="ACEvoSharedMemory.cs" />
+    <Compile Include="ACEvoSharedMemoryGraphics.cs" />
     <Compile Include="BroadcastingEnums.cs" />
     <Compile Include="BroadcastingNetworkProtocol.cs" />
     <Compile Include="Coordinates.cs" />

@@ -10,48 +10,17 @@ using Serilog;
 
 namespace AssettoCorsaSharedMemory
 {
-    public delegate void PhysicsUpdatedHandler(object sender, PhysicsEventArgs e);
-
-    public delegate void GraphicsUpdatedHandler(object sender, GraphicsEventArgs e);
-    public delegate void EvoGraphicsUpdatedHandler(object sender, EvoGraphicsEventArgs e);
-
-    public delegate void StaticInfoUpdatedHandler(object sender, StaticInfoEventArgs e);
-
-    public delegate void MemoryStatusChangedHandler(object sender, MemoryStatusEventArgs e);
-
-    public delegate void GameStatusChangedHandler(object sender, GameStatusEventArgs e);
-    public delegate void EvoGameStatusChangedHandler(object sender, EvoGameStatusEventArgs e);
-
-    public delegate void PitStatusChangedHandler(object sender, PitStatusEventArgs e);
-
-    public delegate void SessionTypeChangedHandler(object sender, SessionTypeEventArgs e);
-
-    public class AssettoCorsaNotStartedException : Exception
+    public class ACEvoSharedMemory
     {
-        public AssettoCorsaNotStartedException()
-            : base("Shared Memory not connected, is Assetto Corsa running and have you run assettoCorsa.Start()?")
-        {
-        }
-    }
-
-    public enum AC_MEMORY_STATUS
-    {
-        DISCONNECTED,
-        CONNECTING,
-        CONNECTED
-    }
-
-    public class ACCSharedMemory
-    {
-        public static ACCSharedMemory Instance;
+        public static ACEvoSharedMemory Instance;
         private Timer sharedMemoryRetryTimer;
         private AC_MEMORY_STATUS memoryStatus = AC_MEMORY_STATUS.DISCONNECTED;
         public bool IsConnected => (memoryStatus == AC_MEMORY_STATUS.CONNECTED);
         public bool IsRunning => (memoryStatus is AC_MEMORY_STATUS.CONNECTING || memoryStatus is AC_MEMORY_STATUS.CONNECTED);
 
-        private ACCSharedMemoryGraphics _accSharedMemoryGraphics;
+        private ACCSharedMemoryGraphics _sharedMemoryGraphics;
 
-        private AC_STATUS gameStatus = AC_STATUS.AC_OFF;
+        private AC_STATUS gameStatus;// = AC_STATUS.AC_OFF;
         private int pitStatus = 1;
         private AC_SESSION_TYPE sessionType = AC_SESSION_TYPE.AC_UNKNOWN;
 
@@ -549,7 +518,7 @@ namespace AssettoCorsaSharedMemory
             { AC_STATUS.AC_REPLAY, "Replay" },
         };
 
-        public ACCSharedMemory(int telemetryUpdateIntervalMs)
+        public ACEvoSharedMemory(int telemetryUpdateIntervalMs)
         {
             Instance = this;
 
@@ -598,7 +567,6 @@ namespace AssettoCorsaSharedMemory
                 physicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_physics");
                 graphicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_graphics");
                 staticInfoMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_static");
-
                 // Start the timers
                 staticInfoTimer.Start();
                 ProcessStaticInfo();
@@ -708,7 +676,7 @@ namespace AssettoCorsaSharedMemory
         /// <summary>
         /// Represents the method that will handle the graphics update events
         /// </summary>
-        public event GraphicsUpdatedHandler GraphicsUpdated;
+        public event EvoGraphicsUpdatedHandler GraphicsUpdated;
 
         /// <summary>
         /// Represents the method that will handle the static info update events
@@ -720,26 +688,26 @@ namespace AssettoCorsaSharedMemory
             PhysicsUpdated?.Invoke(this, e);
         }
 
-        public virtual void OnGraphicsUpdated(GraphicsEventArgs e)
+        public virtual void OnGraphicsUpdated(EvoGraphicsEventArgs e)
         {
             if (GraphicsUpdated != null)
             {
                 GraphicsUpdated(this, e);
-                if (gameStatus != e.ACCSharedMemoryGraphics.Status)
+                if (gameStatus != e.ACEvoSharedMemoryGraphics.Status)
                 {
-                    gameStatus = e.ACCSharedMemoryGraphics.Status;
+                    gameStatus = e.ACEvoSharedMemoryGraphics.Status;
                     GameStatusChanged?.Invoke(this, new GameStatusEventArgs(gameStatus));
                 }
 
-                if (pitStatus != e.ACCSharedMemoryGraphics.IsInPit)
+                if (pitStatus != e.ACEvoSharedMemoryGraphics.IsInPit)
                 {
-                    pitStatus = e.ACCSharedMemoryGraphics.IsInPit;
+                    pitStatus = e.ACEvoSharedMemoryGraphics.IsInPit;
                     PitStatusChanged?.Invoke(this, new PitStatusEventArgs(pitStatus));
                 }
 
-                if (sessionType != e.ACCSharedMemoryGraphics.Session)
+                if (sessionType != e.ACEvoSharedMemoryGraphics.Session)
                 {
-                    sessionType = e.ACCSharedMemoryGraphics.Session;
+                    sessionType = e.ACEvoSharedMemoryGraphics.Session;
                     SessionTypeChanged?.Invoke(this, new SessionTypeEventArgs(sessionType));
                 }
             }
@@ -787,8 +755,8 @@ namespace AssettoCorsaSharedMemory
 
             try
             {
-                _accSharedMemoryGraphics = ReadGraphics();
-                OnGraphicsUpdated(new GraphicsEventArgs(_accSharedMemoryGraphics));
+                _sharedMemoryGraphics = ReadGraphics();
+                OnGraphicsUpdated(new EvoGraphicsEventArgs(_sharedMemoryGraphics));
             }
             catch (AssettoCorsaNotStartedException)
             {
@@ -838,17 +806,29 @@ namespace AssettoCorsaSharedMemory
             if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || graphicsMMF == null)
                 throw new AssettoCorsaNotStartedException();
 
-            using (var stream = graphicsMMF.CreateViewStream())
+            using var stream = graphicsMMF.CreateViewStream();
+            using var reader = new BinaryReader(stream);
+            //var size = Marshal.SizeOf(typeof(ACEvoSharedMemoryGraphics));
+            //var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            //var addrOfPinnedObject = handle.AddrOfPinnedObject();
+            //var data = (ACEvoSharedMemoryGraphics)Marshal.PtrToStructure(addrOfPinnedObject, typeof(ACEvoSharedMemoryGraphics));
+            
+            int bufferSize = 10 * 1024 * 1024;
+            byte[] bytes = reader.ReadBytes(bufferSize);
+            File.WriteAllBytes("./ACEvoSharedMemoryGraphics.bin", bytes);
+            
+            
+            //handle.Free();
+            return new ACCSharedMemoryGraphics();
+        }
+        
+        private byte[] DumpSharedMemory(MemoryMappedFile mmf, Type structType)
+        {
+            using (var stream = mmf.CreateViewStream())
+            using (var reader = new BinaryReader(stream))
             {
-                using (var reader = new BinaryReader(stream))
-                {
-                    var size = Marshal.SizeOf(typeof(ACCSharedMemoryGraphics));
-                    var bytes = reader.ReadBytes(size);
-                    var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-                    var data = (ACCSharedMemoryGraphics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryGraphics));
-                    handle.Free();
-                    return data;
-                }
+                int size = Marshal.SizeOf(structType);
+                return reader.ReadBytes(size);
             }
         }
 
@@ -891,10 +871,10 @@ namespace AssettoCorsaSharedMemory
 
         public float GetClouds(double sessionTimeElapsed, float trackToAmbientTempDelta)
         {
-            if (_accSharedMemoryGraphics.Split == null)
+            if (_sharedMemoryGraphics.Split == null)
                 return 0;
 
-            var precipNow = _accSharedMemoryGraphics.GetPrecipitation();
+            var precipNow = _sharedMemoryGraphics.GetPrecipitation();
             var precip5MinAgo = precipNow;
             var minutesElapsed = (int)Math.Floor(sessionTimeElapsed / 60d);
             if (minutesElapsed >= 5 && _rainLevels.TryGetValue(minutesElapsed - 5, out var storedPrecip5Min))
@@ -904,7 +884,7 @@ namespace AssettoCorsaSharedMemory
 
             _rainLevels[minutesElapsed] = precipNow;
 
-            var precip10Min = ACCSharedMemoryConverters.RainIntensityEnumToFloat(_accSharedMemoryGraphics.RainIntensityIn10Min);
+            var precip10Min = ACCSharedMemoryConverters.RainIntensityEnumToFloat(_sharedMemoryGraphics.RainIntensityIn10Min);
 
             var clouds = 0f;
             var isPrecip = Math.Abs(precipNow) >= 0.0001f;

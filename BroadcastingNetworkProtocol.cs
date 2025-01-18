@@ -407,7 +407,7 @@ public class BroadcastingNetworkProtocol
         
         if (ConnectionId > -1)
         {
-            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
+            Log.ForContext("Context", "Sim").Verbose("UdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
             Disconnect();
             //return;
         }
@@ -422,8 +422,8 @@ public class BroadcastingNetworkProtocol
 
         Send(ms.ToArray());
         
-        Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient RequestConnection sent");
-        Log.ForContext("Context", "Sim").Information("Waiting for ACC connection...");
+        Log.ForContext("Context", "Sim").Verbose("UdpRemoteClient RequestConnection sent");
+        Log.ForContext("Context", "Sim").Information($"Waiting for {displayName} connection...");
 
     }
 
