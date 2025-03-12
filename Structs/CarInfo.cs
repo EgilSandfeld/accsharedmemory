@@ -11,7 +11,7 @@ namespace AssettoCorsaSharedMemory.Structs
         public int RaceNumber { get; internal set; }
         public byte CupCategory { get; internal set; }
         public int CurrentDriverIndex { get; internal set; }
-        public IList<DriverInfo> Drivers { get; } = new List<DriverInfo>();
+        public List<DriverInfo> Drivers { get; } = new List<DriverInfo>();
         public NationalityEnum Nationality { get; internal set; }
 
         public CarInfo(ushort carIndex)
