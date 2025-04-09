@@ -449,6 +449,7 @@ namespace AssettoCorsaSharedMemory
             { CarModel.mclaren_570s_gt4, new(4606, 2095) },
             { CarModel.mclaren_650s_gt3, new(4534, 2040) },
             { CarModel.mclaren_720s_gt3_2019, new(4664, 2040) },
+            { CarModel.mclaren_720s_gt3_evo_2023, new(4543, 2161) }, //https://www.conceptcarz.com/s32741/mclaren-720s-gt3-evo.aspx
             { CarModel.mercedes_amg_gt3, new(4710, 1990) },
             { CarModel.mercedes_amg_gt3_evo_2020, new(4746, 2049) },
             { CarModel.mercedes_amg_gt4, new(4619, 1996) },
@@ -460,6 +461,7 @@ namespace AssettoCorsaSharedMemory
             { CarModel.porsche_991ii_gt3_r_2019, new(4629, 2002) },
             { CarModel.porsche_935, new(4864, 2035) }, //https://www.conceptcarz.com/s28876/porsche-935.aspx
             { CarModel.porsche_911_gt2_rs_cs_evo, new(4743, 1978) }, //https://www.ultimatecarpage.com/spec/8484/Porsche-911-GT2-RS-Clubsport-Evo.html
+            { CarModel.porsche_992_gt3_r, new(4619, 2050) }, //https://www.loveforporsche.com/technical-data-porsche-911-gt3-r-992-model-year-2023/
             { CarModel.mercedes_amg_gt2, new(4546, 2007) }, //Unsure, https://en.wikipedia.org/wiki/Mercedes-AMG_GT
             { CarModel.maserati_mc20_gt2, new(4838, 2030) }, //https://www.maserati.com/global/en/corse/gt2/gt2-technical-specifications
             { CarModel.ktm_xbow_gt2, new(4626, 2040) }, //https://www.ktm.com/en-dk/models/x-bow/x-bow-gt2-2020.html

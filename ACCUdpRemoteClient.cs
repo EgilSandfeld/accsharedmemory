@@ -165,8 +165,8 @@ namespace AssettoCorsaSharedMemory
                     {
                         if (_client != null)
                         {
-                            _client.Close();
-                            _client.Dispose();
+                            _client?.Close();
+                            _client?.Dispose();
                             _client = null;
                         }
 
