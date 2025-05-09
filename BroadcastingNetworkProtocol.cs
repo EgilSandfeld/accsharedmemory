@@ -405,12 +405,12 @@ public class BroadcastingNetworkProtocol
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
         
-        if (ConnectionId > -1)
-        {
-            Log.ForContext("Context", "Sim").Verbose("UdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
-            Disconnect();
-            //return;
-        }
+        // if (ConnectionId > -1)
+        // {
+        //     Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
+        //     Disconnect();
+        //     //return;
+        // }
         
         br.Write((byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION); // First byte is always the command type
         br.Write((byte)BROADCASTING_PROTOCOL_VERSION);
@@ -420,15 +420,16 @@ public class BroadcastingNetworkProtocol
         br.Write(msRealtimeUpdateInterval);
         WriteString(br, commandPassword);
 
-        Send(ms.ToArray());
+        var payload = ms.ToArray();
+        Send(payload);
         
-        Log.ForContext("Context", "Sim").Verbose("UdpRemoteClient RequestConnection sent");
+        Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
         Log.ForContext("Context", "Sim").Information($"Waiting for {displayName} connection...");
-
     }
 
     internal void Disconnect()
     {
+        Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient Disconnect");
         _firstTrackDataCts?.Cancel();
         
         using var ms = new MemoryStream();
@@ -448,23 +449,23 @@ public class BroadcastingNetworkProtocol
     /// </summary>
     public void RequestEntryList()
     {
+        Log.ForContext("Context", "Sim").Verbose("ACC RequestEntryList on ConnectionId {ConnectionId}...", ConnectionId);
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
         br.Write((byte)OutboundMessageTypes.REQUEST_ENTRY_LIST); // First byte is always the command type
         br.Write(ConnectionId);
 
-        Log.ForContext("Context", "Sim").Verbose("ACC RequestEntryList on ConnectionId {ConnectionId}...", ConnectionId);
         Send(ms.ToArray());
     }
 
     public void RequestTrackData()
     {
+        Log.ForContext("Context", "Sim").Verbose("ACC RequestTrackData on ConnectionId {ConnectionId}...", ConnectionId);
         using var ms = new MemoryStream();
         using var br = new BinaryWriter(ms);
         br.Write((byte)OutboundMessageTypes.REQUEST_TRACK_DATA); // First byte is always the command type
         br.Write(ConnectionId);
 
-        Log.ForContext("Context", "Sim").Verbose("ACC RequestTrackData on ConnectionId {ConnectionId}...", ConnectionId);
         Send(ms.ToArray());
 
         Task.Run(CheckRequestTrackDataSucceeded);

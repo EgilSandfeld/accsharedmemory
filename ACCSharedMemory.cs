@@ -431,6 +431,7 @@ namespace AssettoCorsaSharedMemory
             { CarModel.bmw_m4_gt4, new(4863, 2093) },
             { CarModel.bmw_m6_gt3, new(4944, 2046) },
             { CarModel.chevrolet_camaro_gt4r, new(4783, 1897) },
+            { CarModel.ferrari_296_gt3, new(4565, 1958) },
             { CarModel.ferrari_488_challenge_evo, new(4568, 1952) },
             { CarModel.ferrari_488_gt3, new(4633, 2045) },
             { CarModel.ferrari_488_gt3_evo_2020, new(4633, 2045) },

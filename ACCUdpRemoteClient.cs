@@ -1,5 +1,6 @@
 ﻿using System;
-using System.Linq;
+using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Serilog;
@@ -9,7 +10,7 @@ namespace AssettoCorsaSharedMemory
     public class ACCUdpRemoteClient : IDisposable
     {
         private UdpClient _client;
-        private Task _listenerTask;
+        private bool _runUdp;
         public BroadcastingNetworkProtocol MessageHandler { get; set; }
         public string IpPort { get; }
         public string Ip { get; }
@@ -31,40 +32,115 @@ namespace AssettoCorsaSharedMemory
             MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId);
             _client = new UdpClient();
             
-
             DisplayName = displayName;
             ConnectionPassword = connectionPassword;
             CommandPassword = commandPassword;
             MsRealtimeUpdateInterval = msRealtimeUpdateInterval;
         }
 
-        public void Start()
+        public bool Start()
         {
-            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
-            _client.Connect(Ip, Port);
-            _listenerTask = ConnectAndRun();
+            try
+            {
+                Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
+                _client.Connect(Ip, Port);
+                ConnectAndRun();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Bug(e, "ACCUdpRemoteClient.Start");
+                return false;
+            }
         }
 
         private void Send(byte[] payload)
         {
-            /*var sent = */_client.Send(payload, payload.Length);
+            _client.Send(payload, payload.Length);
         }
         
-        private async Task ConnectAndRun()
+        private void ConnectAndRun()
         {
             Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
+            _runUdp = true;
+            try
+            {
+                Task.Run(async () =>
+                {
+                    while (_runUdp)
+                    {
+                        try
+                        {
+                            //await ReceiveLoop();
 
-            // Start the receive loop
-            var receiveTask = ReceiveLoop();
+                            if (_client == null || !_client.Client.Connected)
+                            {
+                                await Task.Delay(1000);
+                                continue;
+                            }
+
+                            var udpReceiveTask = _client.ReceiveAsync();
+
+                            if (!udpReceiveTask.IsCompleted)
+                                udpReceiveTask.Wait(20000);
+
+                            if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
+                            {
+                                try
+                                {
+                                    _client.Close();
+                                    _client = null;
+                                    _client = new UdpClient();
+                                    _client.Connect(Ip, Port);
+                                    RequestConnection();
+                                }
+                                catch (Exception e)
+                                {
+                                    Bug(e, "ACC UdpRemoteClient ConnectAndRun Close Exception: " + e.Message);
+                                }
+
+                                await Task.Delay(1000);
+                                continue;
+                            }
+
+                            var udpPacket = udpReceiveTask.Result;
+
+                            if (udpPacket.Buffer.Length == 0)
+                            {
+                                await Task.Delay(10);
+                                continue;
+                            }
+
+                            using var ms = new MemoryStream(udpPacket.Buffer);
+                            using var reader = new BinaryReader(ms);
+                            MessageHandler.ProcessMessage(reader);
+                        }
+                        catch (Exception ex)
+                        {
+                            if (ex is AggregateException ae && ae.InnerException is ObjectDisposedException)
+                                break;
+
+                            Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                if (ex is AggregateException ae && ae.InnerException is ObjectDisposedException)
+                    return;
+
+                Bug(ex, "ACC UdpRemoteClient ConnectAndRun Outer Exception: " + ex.Message);
+            }
 
             // Immediately send connection request after starting the listener
             RequestConnection();
-
-            await receiveTask; // Keep the task alive to continue listening
         }
 
         private async Task ReceiveLoop()
         {
+            Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop");
+            var counter = 0;
             while (_client != null)
             {
                 try
@@ -73,9 +149,14 @@ namespace AssettoCorsaSharedMemory
                     using var ms = new System.IO.MemoryStream(udpPacket.Buffer);
                     using var reader = new System.IO.BinaryReader(ms);
                     MessageHandler.ProcessMessage(reader);
+                    counter++;
+                    if (MessageHandler.ConnectionId == -1 && counter % 1000 == 0)
+                        Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ReceiveLoop during non-connected, loops completed: {Counter} ", counter);
                 }
                 catch (ObjectDisposedException ex)
                 {
+                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop ObjectDisposedException: {Message}", ex.Message);
+            
                     if (!disposingValue && !disposedValue)
                         Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
                     
@@ -83,11 +164,13 @@ namespace AssettoCorsaSharedMemory
                 }
                 catch (SocketException ex)
                 {
+                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop SocketException: {Message}", ex.Message);
                     if (ex.ErrorCode != 10054)
                         Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
+                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop Exception: {Message}", ex.Message);
                     Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
                 }
             }
@@ -136,16 +219,24 @@ namespace AssettoCorsaSharedMemory
 
         private void RequestConnection()
         {
-            MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
+            try
+            {
+                MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
+            }
+            catch (Exception e)
+            {
+                Bug(e, "ACC UdpRemoteClient RequestConnection");
+            }
         }
 
         public async Task Stop()
         {
             if (MessageHandler == null || MessageHandler.ConnectionId == -1)
                 return;
-            
+
+            _runUdp = false;
             MessageHandler.Disconnect();
-            await Task.Delay(1000);
+            await Task.Delay(100);
             Dispose();
             MessageHandler = null;
         }
@@ -156,6 +247,7 @@ namespace AssettoCorsaSharedMemory
 
         protected virtual void Dispose(bool disposing)
         {
+            _runUdp = false;
             if (!disposedValue)
             {
                 disposingValue = true;
