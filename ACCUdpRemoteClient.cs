@@ -117,7 +117,7 @@ namespace AssettoCorsaSharedMemory
                         }
                         catch (Exception ex)
                         {
-                            if (ex is SocketException || ex is AggregateException ae && ae.InnerException is ObjectDisposedException)
+                            if (ex is SocketException || ex is AggregateException ae && (ae.InnerException is ObjectDisposedException or TaskCanceledException))
                                 break;
 
                             Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
