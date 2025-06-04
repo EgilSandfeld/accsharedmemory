@@ -66,10 +66,19 @@ public class BroadcastingNetworkProtocol
         Send = sendMessageDelegate ?? throw new ArgumentNullException(nameof(sendMessageDelegate), "The protocol class doesn't know anything about the network layer; please put a callback we can use to send data via UDP");
     }
 
+    private int _messagesReceived;
     internal void ProcessMessage(BinaryReader br)
     {
         // Any message starts with an 1-byte command type
-        var messageType = (InboundMessageTypes)br.ReadByte();
+        var readByte = br.ReadByte();
+        var messageType = (InboundMessageTypes)readByte;
+
+        if (_messagesReceived < 10)
+        {
+            _messagesReceived++;
+            Log.ForContext("Context", "Sim").Verbose("ACC UDP ProcessMessage: Received: {Message}, readByte: {ReadByte}", messageType, readByte);
+        }
+        
         switch (messageType)
         {
             case InboundMessageTypes.REGISTRATION_RESULT:
@@ -125,6 +134,7 @@ public class BroadcastingNetworkProtocol
         var connectionSuccess = br.ReadByte() > 0;
         var isReadonly = br.ReadByte() == 0;
         var errMsg = ReadString(br);
+        Log.ForContext("Context", "Sim").Verbose("ACC UDP OnRegistrationResult: ConnectionId: {ConnectionId}, connectionSuccess: {ConnectionSuccess}, isReadonly: {IsReadonly}, errMsg: '{ErrorMsg}'", ConnectionId, connectionSuccess, isReadonly, errMsg);
         OnConnectionStateChanged?.Invoke(ConnectionId, connectionSuccess, isReadonly, errMsg);
     }
 
@@ -486,7 +496,7 @@ public class BroadcastingNetworkProtocol
             return;
             
         //Log.ForContext("Context", "Sim").Verbose("ACC CheckRequestTrackDataSucceeded: Re-requesting track data (attempt #{AttemptCount})...", _checkRequestTrackDataSucceededCount);
-        Log.ForContext("Context", "Sim").Information("Waiting for ACC track & entry lists data (attempt #{AttemptCount})...", _checkRequestTrackDataSucceededCount);
+        Log.ForContext("Context", "Sim").Information("ACC UdpRemoteClient CheckRequestTrackDataSucceeded: Waiting for ACC track & entry lists data (attempt #{AttemptCount})...", _checkRequestTrackDataSucceededCount);
 
         RequestEntryList();
         RequestTrackData();
