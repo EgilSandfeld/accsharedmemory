@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Serilog;
 
@@ -19,7 +20,8 @@ namespace AssettoCorsaSharedMemory
         public string ConnectionPassword { get; }
         public string CommandPassword { get; }
         public int MsRealtimeUpdateInterval { get; }
-
+        private CancellationTokenSource _cts;
+        private Task _listenerTask;
         /// <summary>
         /// To get the events delivered inside the UI thread, just create this object from the UI thread/synchronization context.
         /// </summary>
@@ -44,7 +46,8 @@ namespace AssettoCorsaSharedMemory
             {
                 Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
                 _client.Connect(Ip, Port);
-                ConnectAndRun();
+                _cts = new CancellationTokenSource();
+                _listenerTask = Task.Run(() => ConnectAndRun(_cts.Token), _cts.Token);
                 return true;
             }
             catch (Exception e)
@@ -59,122 +62,179 @@ namespace AssettoCorsaSharedMemory
             _client.Send(payload, payload.Length);
         }
         
-        private void ConnectAndRun()
+        private async Task ConnectAndRun(CancellationToken token)
         {
             Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
-            _runUdp = true;
-            try
-            {
-                Task.Run(async () =>
-                {
-                    while (_runUdp)
-                    {
-                        try
-                        {
-                            //await ReceiveLoop();
-
-                            if (_client == null || !_client.Client.Connected)
-                            {
-                                await Task.Delay(1000);
-                                continue;
-                            }
-
-                            var udpReceiveTask = _client.ReceiveAsync();
-
-                            if (!udpReceiveTask.IsCompleted)
-                                udpReceiveTask.Wait(20000);
-
-                            if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
-                            {
-                                try
-                                {
-                                    _client.Close();
-                                    _client = null;
-                                    _client = new UdpClient();
-                                    _client.Connect(Ip, Port);
-                                    RequestConnection();
-                                }
-                                catch (Exception e)
-                                {
-                                    Bug(e, "ACC UdpRemoteClient ConnectAndRun Close Exception: " + e.Message);
-                                }
-
-                                await Task.Delay(1000);
-                                continue;
-                            }
-
-                            var udpPacket = udpReceiveTask.Result;
-
-                            if (udpPacket.Buffer.Length == 0)
-                            {
-                                await Task.Delay(10);
-                                continue;
-                            }
-
-                            using var ms = new MemoryStream(udpPacket.Buffer);
-                            using var reader = new BinaryReader(ms);
-                            MessageHandler.ProcessMessage(reader);
-                        }
-                        catch (Exception ex)
-                        {
-                            if (ex is SocketException || ex is AggregateException ae && (ae.InnerException is ObjectDisposedException or TaskCanceledException))
-                                break;
-
-                            Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
-                        }
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                if (ex is AggregateException ae && ae.InnerException is ObjectDisposedException)
-                    return;
-
-                Bug(ex, "ACC UdpRemoteClient ConnectAndRun Outer Exception: " + ex.Message);
-            }
-
-            // Immediately send connection request after starting the listener
             RequestConnection();
-        }
 
-        private async Task ReceiveLoop()
-        {
-            Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop");
-            var counter = 0;
-            while (_client != null)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    var udpPacket = await _client.ReceiveAsync();
-                    using var ms = new System.IO.MemoryStream(udpPacket.Buffer);
-                    using var reader = new System.IO.BinaryReader(ms);
+                    // Await the task. This will correctly propagate exceptions to the catch block.
+                    // Pass the token to ReceiveAsync. This makes it cancellable.
+                    var udpPacket = await _client.ReceiveAsync().WithCancellation(token);
+
+                    if (udpPacket.Buffer.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    using var ms = new MemoryStream(udpPacket.Buffer);
+                    using var reader = new BinaryReader(ms);
                     MessageHandler.ProcessMessage(reader);
-                    counter++;
-                    if (MessageHandler.ConnectionId == -1 && counter % 1000 == 0)
-                        Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ReceiveLoop during non-connected, loops completed: {Counter} ", counter);
                 }
-                catch (ObjectDisposedException ex)
+                catch (OperationCanceledException)
                 {
-                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop ObjectDisposedException: {Message}", ex.Message);
-            
-                    if (!disposingValue && !disposedValue)
-                        Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
-                    
-                    break;
+                    // This is the expected exception when we call Stop(). It's a clean shutdown.
+                    Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient listener task cancelled.");
+                    break; // Exit the loop
                 }
                 catch (SocketException ex)
                 {
-                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop SocketException: {Message}", ex.Message);
-                    if (ex.ErrorCode != 10054)
-                        Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
+                    // Handle specific socket errors, e.g., if the remote host closes the connection
+                    Log.ForContext("Context", "Sim").Warning(ex, "SocketException in listener loop.");
+                    await Task.Delay(1000, token); // Wait a bit before retrying
                 }
                 catch (Exception ex)
                 {
-                    Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop Exception: {Message}", ex.Message);
-                    Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+                    // Catch any other unexpected errors
+                    if (token.IsCancellationRequested) 
+                        break; // If cancellation was requested during an error, just exit.
+                        
+                    Bug(ex, "ACC UdpRemoteClient ConnectAndRun unhandled exception in loop.");
+                    await Task.Delay(1000, token); // Wait a bit before retrying
                 }
             }
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient listener loop finished.");
         }
+        
+        // private void ConnectAndRun()
+        // {
+        //     Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
+        //     _runUdp = true;
+        //     try
+        //     {
+        //         Task.Run(async () =>
+        //         {
+        //             while (_runUdp)
+        //             {
+        //                 try
+        //                 {
+        //                     //await ReceiveLoop();
+        //
+        //                     if (_client == null || !_client.Client.Connected)
+        //                     {
+        //                         await Task.Delay(1000);
+        //                         continue;
+        //                     }
+        //
+        //                     Task<UdpReceiveResult> udpReceiveTask;
+        //                     try
+        //                     {
+        //                         udpReceiveTask = _client.ReceiveAsync();
+        //                     }
+        //                     catch (Exception e)
+        //                     {
+        //                         Bug(e, "_client.ReceiveAsync");
+        //                         await Task.Delay(1000);
+        //                         continue;
+        //                     }
+        //
+        //                     if (!udpReceiveTask.IsCompleted)
+        //                         udpReceiveTask.Wait(20000);
+        //
+        //                     if (udpReceiveTask.Status == TaskStatus.WaitingForActivation)
+        //                     {
+        //                         try
+        //                         {
+        //                             _client.Close();
+        //                             _client = null;
+        //                             _client = new UdpClient();
+        //                             _client.Connect(Ip, Port);
+        //                             RequestConnection();
+        //                         }
+        //                         catch (Exception e)
+        //                         {
+        //                             Bug(e, "ACC UdpRemoteClient ConnectAndRun Close Exception: " + e.Message);
+        //                         }
+        //
+        //                         await Task.Delay(1000);
+        //                         continue;
+        //                     }
+        //
+        //                     var udpPacket = udpReceiveTask.Result;
+        //
+        //                     if (udpPacket.Buffer.Length == 0)
+        //                     {
+        //                         await Task.Delay(10);
+        //                         continue;
+        //                     }
+        //
+        //                     using var ms = new MemoryStream(udpPacket.Buffer);
+        //                     using var reader = new BinaryReader(ms);
+        //                     MessageHandler.ProcessMessage(reader);
+        //                 }
+        //                 catch (Exception ex)
+        //                 {
+        //                     if (ex is SocketException || ex is AggregateException ae && (ae.InnerException is ObjectDisposedException or TaskCanceledException))
+        //                         break;
+        //
+        //                     Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+        //                 }
+        //             }
+        //         });
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         if (ex is AggregateException ae && ae.InnerException is ObjectDisposedException)
+        //             return;
+        //
+        //         Bug(ex, "ACC UdpRemoteClient ConnectAndRun Outer Exception: " + ex.Message);
+        //     }
+        //
+        //     // Immediately send connection request after starting the listener
+        //     RequestConnection();
+        // }
+
+        // private async Task ReceiveLoop()
+        // {
+        //     Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop");
+        //     var counter = 0;
+        //     while (_client != null)
+        //     {
+        //         try
+        //         {
+        //             var udpPacket = await _client.ReceiveAsync();
+        //             using var ms = new System.IO.MemoryStream(udpPacket.Buffer);
+        //             using var reader = new System.IO.BinaryReader(ms);
+        //             MessageHandler.ProcessMessage(reader);
+        //             counter++;
+        //             if (MessageHandler.ConnectionId == -1 && counter % 1000 == 0)
+        //                 Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ReceiveLoop during non-connected, loops completed: {Counter} ", counter);
+        //         }
+        //         catch (ObjectDisposedException ex)
+        //         {
+        //             Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop ObjectDisposedException: {Message}", ex.Message);
+        //     
+        //             if (!disposingValue && !disposedValue)
+        //                 Bug(ex, "ACC UdpRemoteClient ConnectAndRun ObjectDisposedException: " + ex.Message);
+        //             
+        //             break;
+        //         }
+        //         catch (SocketException ex)
+        //         {
+        //             Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop SocketException: {Message}", ex.Message);
+        //             if (ex.ErrorCode != 10054)
+        //                 Bug(ex, "ACC UdpRemoteClient ConnectAndRun SocketException: " + ex.Message);
+        //         }
+        //         catch (Exception ex)
+        //         {
+        //             Log.ForContext("Context", "Sim").Verbose("ACC ReceiveLoop Exception: {Message}", ex.Message);
+        //             Bug(ex, "ACC UdpRemoteClient ConnectAndRun Exception: " + ex.Message);
+        //         }
+        //     }
+        // }
 
         // private async Task ConnectAndRun()
         // {
@@ -229,16 +289,63 @@ namespace AssettoCorsaSharedMemory
             }
         }
 
+        // public async Task Stop()
+        // {
+        //     if (MessageHandler == null || MessageHandler.ConnectionId == -1)
+        //         return;
+        //
+        //     _runUdp = false;
+        //     MessageHandler.Disconnect();
+        //     await Task.Delay(100);
+        //     Dispose();
+        //     MessageHandler = null;
+        // }
+        
         public async Task Stop()
         {
-            if (MessageHandler == null || MessageHandler.ConnectionId == -1)
+            // Check if there's anything to stop.
+            if (_cts == null || _listenerTask == null || _cts.IsCancellationRequested)
                 return;
 
-            _runUdp = false;
-            MessageHandler.Disconnect();
-            await Task.Delay(100);
-            Dispose();
-            MessageHandler = null;
+            try
+            {
+                // 1. Signal the listener task to stop.
+                _cts.Cancel();
+
+                // 2. Create a timeout task.
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(2));
+
+                // 3. Wait for EITHER the listener task to complete OR the timeout to expire.
+                var completedTask = await Task.WhenAny(_listenerTask, timeoutTask);
+
+                // 4. Check if the timeout task is the one that completed.
+                if (completedTask == timeoutTask)
+                {
+                    // If so, the listener task has timed out.
+                    Log.ForContext("Context", "Sim").Warning("UDP listener task did not stop in time.");
+                }
+                else
+                {
+                    // The listener task completed successfully. We can now safely check its status.
+                    // Awaiting it here will propagate any final exception from the task, preventing UnobservedTaskException.
+                    await _listenerTask;
+                }
+            }
+            catch (Exception ex)
+            {
+                // This will catch any exception that the _listenerTask might have thrown upon completion.
+                // We check for OperationCanceledException because that's an expected, clean shutdown.
+                if (ex is not OperationCanceledException)
+                {
+                    Bug(ex, "Exception while awaiting listener task shutdown.");
+                }
+            }
+            finally
+            {
+                // 5. Always proceed with disposal.
+                MessageHandler?.Disconnect();
+                Dispose();
+            }
         }
 
         private bool disposedValue;
@@ -261,7 +368,8 @@ namespace AssettoCorsaSharedMemory
                             _client?.Dispose();
                             _client = null;
                         }
-
+                        
+                        MessageHandler = null;
                     }
                     catch (Exception ex)
                     {

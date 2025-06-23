@@ -82,6 +82,7 @@
     <Compile Include="Structs\RealtimeCarUpdate.cs" />
     <Compile Include="Structs\RealtimeUpdate.cs" />
     <Compile Include="Structs\TrackData.cs" />
+    <Compile Include="UdpClientExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="ACCSharedMemoryDocumentationV1.8.12.pdf" />
