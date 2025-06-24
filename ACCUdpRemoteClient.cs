@@ -11,7 +11,6 @@ namespace AssettoCorsaSharedMemory
     public class ACCUdpRemoteClient : IDisposable
     {
         private UdpClient _client;
-        private bool _runUdp;
         public BroadcastingNetworkProtocol MessageHandler { get; set; }
         public string IpPort { get; }
         public string Ip { get; }
@@ -349,15 +348,12 @@ namespace AssettoCorsaSharedMemory
         }
 
         private bool disposedValue;
-        private bool disposingValue;
         private readonly Action<Exception,string,bool,bool> _bugger;
 
         protected virtual void Dispose(bool disposing)
         {
-            _runUdp = false;
             if (!disposedValue)
             {
-                disposingValue = true;
                 if (disposing)
                 {
                     try
@@ -381,7 +377,6 @@ namespace AssettoCorsaSharedMemory
                 // set large fields to null.
 
                 disposedValue = true;
-                disposingValue = false;
             }
         }
 
