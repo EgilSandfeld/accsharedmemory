@@ -109,7 +109,7 @@ namespace AssettoCorsaSharedMemory
                     {
                         // This is an unexpected network error. Log it and wait before retrying.
                         // This is where "Connessione in corso interrotta..." would be caught if it's not a shutdown.
-                        Log.ForContext("Context", "Sim").Warning(ex, "SocketException in listener loop. Retrying in 1s.");
+                        Log.ForContext("Context", "Sim").Verbose(ex, "SocketException in listener loop. Retrying in 1s.");
                     }
                     
                     await Task.Delay(1000, token); // Use the token here so the delay is also cancellable.
