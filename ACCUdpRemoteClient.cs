@@ -31,6 +31,19 @@ namespace AssettoCorsaSharedMemory
             _bugger = bugger;
             MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId);
             _client = new UdpClient();
+
+            // Prevent UDP "ConnectionReset" SocketException on Windows when receiving ICMP Port Unreachable
+            // Reference: https://stackoverflow.com/a/14388707
+            try
+            {
+                const int SIO_UDP_CONNRESET = -1744830452; // 0x9800000C
+                _client.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+            }
+            catch (Exception ex)
+            {
+                // If not supported on platform, log as verbose and continue.
+                Log.ForContext("Context", "Sim").Verbose(ex, "Failed to disable UDP connection reset (SIO_UDP_CONNRESET). Continuing without it.");
+            }
             
             DisplayName = displayName;
             ConnectionPassword = connectionPassword;
