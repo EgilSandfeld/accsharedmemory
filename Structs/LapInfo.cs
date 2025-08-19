@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace AssettoCorsaSharedMemory.Structs
 {
@@ -14,6 +15,14 @@ namespace AssettoCorsaSharedMemory.Structs
 
         public override string ToString()
         {
+            if (Splits.Any(x => !x.HasValue))
+            {
+                if (LapTimeMs.HasValue)
+                    return $"{LapTimeMs,5}";
+                
+                return string.Empty;
+            }
+            
             return $"{LapTimeMs, 5}|{string.Join("|", Splits)}";
         }
     }

@@ -6,7 +6,6 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Timers;
-using Serilog;
 
 namespace AssettoCorsaSharedMemory
 {
@@ -584,7 +583,6 @@ namespace AssettoCorsaSharedMemory
         public void Start()
         {
             sharedMemoryRetryTimer.Start();
-            Log.ForContext("Context", "Sim").Verbose("ACC SharedMemory Start");
         }
 
         void sharedMemoryRetryTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -598,9 +596,9 @@ namespace AssettoCorsaSharedMemory
             {
                 SetMemoryStatus(AC_MEMORY_STATUS.CONNECTING);
                 // Connect to shared memory
-                physicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_physics");
-                graphicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_graphics");
-                staticInfoMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_static");
+                physicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_physics", MemoryMappedFileRights.Read);
+                graphicsMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_graphics", MemoryMappedFileRights.Read);
+                staticInfoMMF = MemoryMappedFile.OpenExisting("Local\\acpmf_static", MemoryMappedFileRights.Read);
 
                 // Start the timers
                 staticInfoTimer.Start();
@@ -822,12 +820,15 @@ namespace AssettoCorsaSharedMemory
             if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || physicsMMF == null)
                 throw new AssettoCorsaNotStartedException();
 
-            using (var stream = physicsMMF.CreateViewStream())
+            using (var stream = physicsMMF.CreateViewStream(0, 0, MemoryMappedFileAccess.Read))
             {
                 using (var reader = new BinaryReader(stream))
                 {
                     var size = Marshal.SizeOf(typeof(ACCSharedMemoryPhysics));
                     var bytes = reader.ReadBytes(size);
+                    if (bytes.Length < size) 
+                        throw new EndOfStreamException("Incomplete ACCSharedMemoryPhysics MMF read.");
+                    
                     var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                     var data = (ACCSharedMemoryPhysics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryPhysics));
                     handle.Free();
@@ -841,12 +842,15 @@ namespace AssettoCorsaSharedMemory
             if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || graphicsMMF == null)
                 throw new AssettoCorsaNotStartedException();
 
-            using (var stream = graphicsMMF.CreateViewStream())
+            using (var stream = graphicsMMF.CreateViewStream(0, 0, MemoryMappedFileAccess.Read))
             {
                 using (var reader = new BinaryReader(stream))
                 {
                     var size = Marshal.SizeOf(typeof(ACCSharedMemoryGraphics));
                     var bytes = reader.ReadBytes(size);
+                    if (bytes.Length < size) 
+                        throw new EndOfStreamException("Incomplete ACCSharedMemoryGraphics MMF read.");
+                    
                     var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                     var data = (ACCSharedMemoryGraphics)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryGraphics));
                     handle.Free();
@@ -860,12 +864,15 @@ namespace AssettoCorsaSharedMemory
             if (memoryStatus == AC_MEMORY_STATUS.DISCONNECTED || staticInfoMMF == null)
                 throw new AssettoCorsaNotStartedException();
 
-            using (var stream = staticInfoMMF.CreateViewStream())
+            using (var stream = staticInfoMMF.CreateViewStream(0, 0, MemoryMappedFileAccess.Read))
             {
                 using (var reader = new BinaryReader(stream))
                 {
                     var size = Marshal.SizeOf(typeof(ACCSharedMemoryStatic));
                     var bytes = reader.ReadBytes(size);
+                    if (bytes.Length < size) 
+                        throw new EndOfStreamException("Incomplete ACCSharedMemoryStatic MMF read.");
+
                     var handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                     var data = (ACCSharedMemoryStatic)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(ACCSharedMemoryStatic));
                     handle.Free();

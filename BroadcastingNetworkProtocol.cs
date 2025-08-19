@@ -383,7 +383,7 @@ public class BroadcastingNetworkProtocol
             if (lap.Splits[i] == int.MaxValue)
                 lap.Splits[i] = null;
 
-        if (lap.LapTimeMs == int.MaxValue)
+        if (lap.LapTimeMs is null or int.MaxValue)
             lap.LapTimeMs = null;
 
         return lap;
