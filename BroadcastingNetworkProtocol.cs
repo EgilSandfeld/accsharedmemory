@@ -434,7 +434,7 @@ public class BroadcastingNetworkProtocol
         Send(payload);
         
         Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
-        Log.ForContext("Context", "Sim").Information($"Waiting for {displayName} connection...");
+        Log.ForContext("Context", "Sim").Information("Waiting for {DisplayName} connection...", displayName);
     }
 
     internal void Disconnect()
