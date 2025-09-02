@@ -10,6 +10,8 @@ namespace AssettoCorsaSharedMemory
     public class ACCUdpRemoteClient : IDisposable
     {
         private UdpClient _client;
+        private volatile bool _registered;
+        private Task _registerLoopTask;
         public BroadcastingNetworkProtocol MessageHandler { get; set; }
         public string IpPort { get; }
         public string Ip { get; }
@@ -29,7 +31,16 @@ namespace AssettoCorsaSharedMemory
             Port = port;
             IpPort = $"{ip}:{port}";
             _bugger = bugger;
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient: Ip={Ip} Port={IpPort}", Ip, Port);
             MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId);
+            MessageHandler.OnConnectionStateChanged += (id, success, ro, err) =>
+            {
+                _registered = success;
+                if (success)
+                    Log.ForContext("Context", "Sim").Information("ACC UDP registered (id={Id}, readonly={RO})", id, ro);
+                else
+                    Log.ForContext("Context", "Sim").Warning("ACC UDP registration failed: {Err}", err);
+            };
             _client = new UdpClient();
 
             // Prevent UDP "ConnectionReset" SocketException on Windows when receiving ICMP Port Unreachable
@@ -59,6 +70,8 @@ namespace AssettoCorsaSharedMemory
                 _client.Connect(Ip, Port);
                 _cts = new CancellationTokenSource();
                 _listenerTask = Task.Run(() => ConnectAndRun(_cts.Token), _cts.Token);
+                // keep sending REGISTER until acknowledged (or cancelled)
+                _registerLoopTask = Task.Run(() => RegisterUntilConnected(_cts.Token), _cts.Token);
                 return true;
             }
             catch (Exception e)
@@ -76,6 +89,8 @@ namespace AssettoCorsaSharedMemory
         private async Task ConnectAndRun(CancellationToken token)
         {
             Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient ConnectAndRun");
+            //Log.ForContext("Context", "Sim").Information("Waiting for {DisplayName} connection...", DisplayName);
+            
             RequestConnection();
 
             while (!token.IsCancellationRequested)
@@ -156,6 +171,26 @@ namespace AssettoCorsaSharedMemory
                 Bug(e, "ACC UdpRemoteClient RequestConnection");
             }
         }
+
+        private async Task RegisterUntilConnected(CancellationToken token)
+        {
+            var attempt = 0;
+            while (!_registered && !token.IsCancellationRequested)
+            {
+                try
+                {
+                    RequestConnection();
+                }
+                catch (Exception ex)
+                {
+                    Bug(ex, "ACC UdpRemoteClient RegisterUntilConnected RequestConnection");
+                }
+
+                attempt++;
+                var delayMs = attempt < 5 ? 2000 : 5000;
+                try { await Task.Delay(delayMs, token); } catch (OperationCanceledException) { break; }
+            }
+        }
         
         public async Task Stop()
         {
@@ -182,17 +217,16 @@ namespace AssettoCorsaSharedMemory
                 // 4. Await the listener task to ensure it has fully completed.
                 //    (Your existing timeout logic here is good).
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(2));
-                var completedTask = await Task.WhenAny(_listenerTask, timeoutTask);
+                Task all = _registerLoopTask == null ? _listenerTask : Task.WhenAll(_listenerTask, _registerLoopTask);
+                var completedTask = await Task.WhenAny(all, timeoutTask);
 
-                if (completedTask == timeoutTask || !_listenerTask.IsCompleted)
+                if (completedTask == timeoutTask || (all is Task t && !t.IsCompleted))
                 {
-                    Log.ForContext("Context", "Sim").Warning("UDP listener task did not stop in time.");
+                    Log.ForContext("Context", "Sim").Warning("UDP tasks did not stop in time.");
                 }
                 else
                 {
-                    // The listener completed. Await it to observe any final exceptions.
-                    // This is critical to prevent a new UnobservedTaskException.
-                    await _listenerTask;
+                    await all;
                 }
             }
             catch (Exception ex)
@@ -227,6 +261,9 @@ namespace AssettoCorsaSharedMemory
                         _cts?.Dispose();
                         _cts = null;
                         
+                        _registerLoopTask = null;
+                        _registered = false;
+                        
                         MessageHandler = null;
                     }
                     catch (Exception ex)
@@ -234,9 +271,6 @@ namespace AssettoCorsaSharedMemory
                         Bug(ex, "ACCUdpRemoteClient Dispose: " + ex.Message);
                     }
                 }
-
-                // free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // set large fields to null.
 
                 disposedValue = true;
             }

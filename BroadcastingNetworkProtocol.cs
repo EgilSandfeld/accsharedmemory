@@ -73,7 +73,7 @@ public class BroadcastingNetworkProtocol
         var readByte = br.ReadByte();
         var messageType = (InboundMessageTypes)readByte;
 
-        if (_messagesReceived < 10)
+        if (_messagesReceived < 10 && (_messagesReceived < 6 || messageType is not (InboundMessageTypes.REALTIME_CAR_UPDATE or InboundMessageTypes.REALTIME_UPDATE)))
         {
             _messagesReceived++;
             Log.ForContext("Context", "Sim").Verbose("ACC UDP ProcessMessage: Received: {Message}, readByte: {ReadByte}", messageType, readByte);
@@ -433,8 +433,7 @@ public class BroadcastingNetworkProtocol
         var payload = ms.ToArray();
         Send(payload);
         
-        Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
-        Log.ForContext("Context", "Sim").Information("Waiting for {DisplayName} connection...", displayName);
+        //Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
     }
 
     internal void Disconnect()
