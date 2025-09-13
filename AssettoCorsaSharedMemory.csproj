@@ -103,7 +103,7 @@
       <Version>9.0.5</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
-      <Version>13.0.2</Version>
+      <Version>13.0.3</Version>
     </PackageReference>
     <PackageReference Include="Serilog">
       <Version>4.2.0</Version>
