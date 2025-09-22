@@ -222,7 +222,7 @@ namespace AssettoCorsaSharedMemory
 
                 if (completedTask == timeoutTask || (all is Task t && !t.IsCompleted))
                 {
-                    Log.ForContext("Context", "Sim").Warning("UDP tasks did not stop in time.");
+                    Log.ForContext("Context", "Sim").Verbose("ACC UDP tasks did not stop in time.");
                 }
                 else
                 {
