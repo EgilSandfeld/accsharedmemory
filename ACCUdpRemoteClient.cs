@@ -164,6 +164,12 @@ namespace AssettoCorsaSharedMemory
         {
             try
             {
+                if (MessageHandler == null)
+                {
+                    Log.ForContext("Context", "Sim").Verbose("ACC UDP: RequestConnection MessageHandler null");
+                    return;
+                }
+                
                 MessageHandler.RequestConnection(DisplayName, ConnectionPassword, MsRealtimeUpdateInterval, CommandPassword);
             }
             catch (Exception e)

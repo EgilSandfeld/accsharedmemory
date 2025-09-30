@@ -412,28 +412,35 @@ public class BroadcastingNetworkProtocol
     /// <param name="commandPassword"></param>
     internal void RequestConnection(string displayName, string connectionPassword, int msRealtimeUpdateInterval, string commandPassword)
     {
-        using var ms = new MemoryStream();
-        using var br = new BinaryWriter(ms);
-        
-        // if (ConnectionId > -1)
-        // {
-        //     Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
-        //     Disconnect();
-        //     //return;
-        // }
-        
-        br.Write((byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION); // First byte is always the command type
-        br.Write((byte)BROADCASTING_PROTOCOL_VERSION);
+        try
+        {
+            using var ms = new MemoryStream();
+            using var br = new BinaryWriter(ms);
 
-        WriteString(br, displayName);
-        WriteString(br, connectionPassword);
-        br.Write(msRealtimeUpdateInterval);
-        WriteString(br, commandPassword);
+            // if (ConnectionId > -1)
+            // {
+            //     Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient Previous connection not closed, so closing {ConnectionId} now...", ConnectionId);
+            //     Disconnect();
+            //     //return;
+            // }
 
-        var payload = ms.ToArray();
-        Send(payload);
-        
-        //Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
+            br.Write((byte)OutboundMessageTypes.REGISTER_COMMAND_APPLICATION); // First byte is always the command type
+            br.Write((byte)BROADCASTING_PROTOCOL_VERSION);
+
+            WriteString(br, displayName);
+            WriteString(br, connectionPassword);
+            br.Write(msRealtimeUpdateInterval);
+            WriteString(br, commandPassword);
+
+            var payload = ms.ToArray();
+            Send(payload);
+
+            //Log.ForContext("Context", "Sim").Verbose("ACC UdpRemoteClient RequestConnection sent with payload length: {PayloadLength}, payload non zeros: {NonZerosPresent}", payload.Length, payload.Any(x => x != 0));
+        }
+        catch (Exception e)
+        {
+            Log.ForContext("Context", "Sim").Warning("ACC UDP RequestConnection: Error: {Message}", e.Message);
+        }
     }
 
     internal void Disconnect()
