@@ -99,6 +99,9 @@ namespace AssettoCorsaSharedMemory
                 {
                     // Await the task. This will correctly propagate exceptions to the catch block.
                     // Pass the token to ReceiveAsync. This makes it cancellable.
+                    if (_client == null)
+                        return;
+                    
                     var udpPacket = await _client.ReceiveAsync();//.WithCancellation(token);
 
                     if (udpPacket.Buffer.Length == 0)
