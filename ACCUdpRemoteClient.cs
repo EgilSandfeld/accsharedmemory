@@ -147,8 +147,8 @@ namespace AssettoCorsaSharedMemory
                 }
                 catch (Exception ex)
                 {
-                    // Catch any other unexpected errors
-                    if (token.IsCancellationRequested) 
+                    // Catch any other unexpected errors, like _client being null (when shut down)
+                    if (ex is NullReferenceException || token.IsCancellationRequested) 
                         break; // If cancellation was requested during an error, just exit.
                         
                     Bug(ex, "ACC UdpRemoteClient ConnectAndRun unhandled exception in loop.");
