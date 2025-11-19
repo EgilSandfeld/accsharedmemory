@@ -115,15 +115,37 @@ namespace AssettoCorsaSharedMemory
                 {
                     // This is an expected, clean shutdown signal.
                     // It's thrown when _client.Close() or Dispose() is called on another thread.
-                    Log.ForContext("Context", "Sim").Verbose("UdpClient was disposed, listener task is shutting down cleanly.");
+                    Log.ForContext("Context", "Sim").Verbose("UdpClient was disposed, listener task is shutting down cleanly");
                     // The token will likely be cancelled, but we break here just in case.
                     break;
                 }
                 catch (OperationCanceledException)
                 {
                     // This is the expected exception when we call Stop(). It's a clean shutdown.
-                    Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient listener task cancelled.");
+                    Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient listener task cancelled");
                     break; // Exit the loop
+                }
+                catch (EndOfStreamException ex)
+                {
+                    // This error indicates an attempt was made to read beyond the end of a data stream, potentially disrupting real-time data broadcasting from the application. Users may lose important telemetry data.
+                    // This usually means we received a truncated or malformed UDP packet while
+                    // parsing lap data (e.g. protocol mismatch or network issue).
+                    // We skip this packet but keep the listener alive so only a single update is lost.
+
+                    Log.ForContext("Context", "Sim").Verbose(ex, "ACC UDP: Truncated/malformed realtime packet while reading lap data. Skipping packet");
+
+                    // Optionally report it through the existing bug callback if you want it in your error telemetry.
+                    // Be careful not to spam, but given how rare this is reported, it's probably fine.
+                    if (_endOfStreamExceptions >= 0)
+                        _endOfStreamExceptions++;
+                    
+                    if (_endOfStreamExceptions > 5)
+                    {
+                        _endOfStreamExceptions = -1; //Disables future bug reports
+                        Bug(ex, "ACC UdpRemoteClient.ConnectAndRun: EndOfStream while parsing realtime car update (lap data). Packet ignored.");
+                    }
+
+                    // Do NOT break; just continue to the next packet.
                 }
                 catch (SocketException ex)
                 {
@@ -132,7 +154,7 @@ namespace AssettoCorsaSharedMemory
                     if (token.IsCancellationRequested)
                     {
                         // This is an expected exception during a controlled shutdown.
-                        Log.ForContext("Context", "Sim").Verbose(ex, "SocketException received during cancellation, shutting down cleanly.");
+                        Log.ForContext("Context", "Sim").Verbose(ex, "SocketException received during cancellation, shutting down cleanly");
                         break;
                     }
                     
@@ -255,6 +277,7 @@ namespace AssettoCorsaSharedMemory
 
         private bool disposedValue;
         private readonly Action<Exception,string,bool,bool> _bugger;
+        private int _endOfStreamExceptions;
 
         protected virtual void Dispose(bool disposing)
         {
