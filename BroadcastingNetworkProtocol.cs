@@ -205,10 +205,10 @@ public class BroadcastingNetworkProtocol
         update.SessionType = (RaceSessionType)br.ReadByte();
         update.Phase = (SessionPhase)br.ReadByte();
         var sessionTime = br.ReadSingle();
-        update.SessionTime = TimeSpan.FromMilliseconds(sessionTime);
+        update.SessionTime = SafeFromMilliseconds(sessionTime);
         //update.SessionTimeMs = sessionTime;
         var sessionEndTime = br.ReadSingle();
-        update.SessionEndTime = TimeSpan.FromMilliseconds(sessionEndTime);
+        update.SessionEndTime = SafeFromMilliseconds(sessionEndTime);
         //update.SessionEndTimeMs = sessionEndTime;
 
         update.FocusedCarIndex = br.ReadInt32();
@@ -224,7 +224,7 @@ public class BroadcastingNetworkProtocol
         }
 
         var rawTimeOfDay = br.ReadSingle();
-        update.TimeOfDay = TimeSpan.FromSeconds(rawTimeOfDay);
+        update.TimeOfDay = SafeFromSeconds(rawTimeOfDay);
         update.AmbientTemp = br.ReadByte();
         update.TrackTemp = br.ReadByte();
         /*update.Clouds = */br.ReadByte()/* / 10.0f*/;
@@ -391,16 +391,88 @@ public class BroadcastingNetworkProtocol
 
     private static string ReadString(BinaryReader br)
     {
-        var length = br.ReadUInt16();
-        var bytes = br.ReadBytes(length);
-        return Encoding.UTF8.GetString(bytes);
+        // Be defensive against truncated UDP packets. BinaryReader will throw
+        // EndOfStreamException if we try to read past the end; instead, validate
+        // that enough bytes remain and return an empty string when incomplete.
+        var stream = br.BaseStream;
+
+        try
+        {
+            var remaining = stream.Length - stream.Position;
+            if (remaining < sizeof(ushort))
+            {
+                // Not enough data even for the length prefix; skip this field safely
+                // by moving to the end of the buffer and returning an empty string.
+                stream.Position = stream.Length;
+                return string.Empty;
+            }
+
+            var length = br.ReadUInt16();
+
+            remaining = stream.Length - stream.Position;
+            if (length == 0) return string.Empty;
+
+            if (remaining < length)
+            {
+                // Incomplete payload for this string; move to end and return empty
+                stream.Position = stream.Length;
+                return string.Empty;
+            }
+
+            var bytes = br.ReadBytes(length);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (NotSupportedException)
+        {
+            // Some custom streams may not support Length/Position. Fall back to safe reads.
+            // Read length guarded; if it fails, return empty.
+            ushort len;
+            try { len = br.ReadUInt16(); }
+            catch { return string.Empty; }
+            if (len == 0) return string.Empty;
+            try
+            {
+                var bytes = br.ReadBytes(len);
+                if (bytes == null || bytes.Length < len) return string.Empty;
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch { return string.Empty; }
+        }
     }
 
     private static void WriteString(BinaryWriter bw, string s)
     {
-        var bytes = Encoding.UTF8.GetBytes(s);
-        bw.Write(Convert.ToUInt16(bytes.Length));
+        // ACC may send/expect empty strings; treat null as empty to avoid ArgumentNullException
+        var text = s ?? string.Empty;
+        var bytes = Encoding.UTF8.GetBytes(text);
+        if (bytes.Length > ushort.MaxValue)
+        {
+            // Truncate to UInt16 length to avoid overflow
+            var truncated = new byte[ushort.MaxValue];
+            Buffer.BlockCopy(bytes, 0, truncated, 0, truncated.Length);
+            bw.Write((ushort)truncated.Length);
+            bw.Write(truncated);
+            return;
+        }
+        bw.Write((ushort)bytes.Length);
         bw.Write(bytes);
+    }
+
+    private static TimeSpan SafeFromMilliseconds(float value)
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value)) return TimeSpan.Zero;
+        // Using double to match TimeSpan APIs
+        var d = (double)value;
+        try { return TimeSpan.FromMilliseconds(d); }
+        catch { return TimeSpan.Zero; }
+    }
+
+    private static TimeSpan SafeFromSeconds(float value)
+    {
+        if (float.IsNaN(value) || float.IsInfinity(value)) return TimeSpan.Zero;
+        var d = (double)value;
+        try { return TimeSpan.FromSeconds(d); }
+        catch { return TimeSpan.Zero; }
     }
 
     /// <summary>

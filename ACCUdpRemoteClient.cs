@@ -67,6 +67,16 @@ namespace AssettoCorsaSharedMemory
             try
             {
                 Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
+                // Validate required passwords early to avoid undefined behavior or server rejects.
+                // CommandPassword is allowed to be empty string but not null.
+                if (string.IsNullOrWhiteSpace(ConnectionPassword) || CommandPassword == null)
+                {
+                    var ex = new ArgumentNullException("UDP passwords not configured",
+                        new NullReferenceException("ACCAdapter.ConnectUdp: missing UDP passwords"));
+                    Log.ForContext("Context", "Sim").Warning("ACC UDP connection requires passwords (connection + command). Configure them before connecting.");
+                    Bug(ex, "UDP passwords not configured: ACCAdapter.ConnectUdp: missing UDP passwords");
+                    return false;
+                }
                 _client.Connect(Ip, Port);
                 _cts = new CancellationTokenSource();
                 _listenerTask = Task.Run(() => ConnectAndRun(_cts.Token), _cts.Token);
@@ -83,7 +93,19 @@ namespace AssettoCorsaSharedMemory
 
         private void Send(byte[] payload)
         {
-            _client.Send(payload, payload.Length);
+            try
+            {
+                if (_client == null) return;
+                _client.Send(payload, payload.Length);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore during shutdown
+            }
+            catch (SocketException ex)
+            {
+                Log.ForContext("Context", "Sim").Verbose(ex, "ACC UDP Send failed");
+            }
         }
         
         private async Task ConnectAndRun(CancellationToken token)
@@ -109,7 +131,8 @@ namespace AssettoCorsaSharedMemory
 
                     using var ms = new MemoryStream(udpPacket.Buffer);
                     using var reader = new BinaryReader(ms);
-                    MessageHandler.ProcessMessage(reader);
+                    // Handler can be nulled during Dispose; guard against races
+                    MessageHandler?.ProcessMessage(reader);
                 }
                 catch (ObjectDisposedException)
                 {
