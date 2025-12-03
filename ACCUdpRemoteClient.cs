@@ -162,7 +162,7 @@ namespace AssettoCorsaSharedMemory
                     if (_endOfStreamExceptions >= 0)
                         _endOfStreamExceptions++;
                     
-                    if (_endOfStreamExceptions > 5)
+                    if (_endOfStreamExceptions > 20)
                     {
                         _endOfStreamExceptions = -1; //Disables future bug reports
                         Bug(ex, "ACC UdpRemoteClient.ConnectAndRun: EndOfStream while parsing realtime car update (lap data). Packet ignored.");
