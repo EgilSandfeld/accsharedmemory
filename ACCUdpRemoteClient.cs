@@ -138,14 +138,14 @@ namespace AssettoCorsaSharedMemory
                 {
                     // This is an expected, clean shutdown signal.
                     // It's thrown when _client.Close() or Dispose() is called on another thread.
-                    Log.ForContext("Context", "Sim").Verbose("UdpClient was disposed, listener task is shutting down cleanly");
+                    Log.ForContext("Context", "Sim").Verbose("ACC UDP: UdpClient was disposed, listener task is shutting down cleanly");
                     // The token will likely be cancelled, but we break here just in case.
                     break;
                 }
                 catch (OperationCanceledException)
                 {
                     // This is the expected exception when we call Stop(). It's a clean shutdown.
-                    Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient listener task cancelled");
+                    Log.ForContext("Context", "Sim").Verbose("ACC UDP: ACCUdpRemoteClient listener task cancelled");
                     break; // Exit the loop
                 }
                 catch (EndOfStreamException ex)
