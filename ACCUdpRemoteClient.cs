@@ -69,7 +69,7 @@ namespace AssettoCorsaSharedMemory
                 Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient Start");
                 // Validate required passwords early to avoid undefined behavior or server rejects.
                 // CommandPassword is allowed to be empty string but not null.
-                if (string.IsNullOrWhiteSpace(ConnectionPassword) || CommandPassword == null)
+                if (/*string.IsNullOrWhiteSpace(ConnectionPassword) || */CommandPassword == null)
                 {
                     var ex = new ArgumentNullException("UDP passwords not configured",
                         new NullReferenceException("ACCAdapter.ConnectUdp: missing UDP passwords"));
