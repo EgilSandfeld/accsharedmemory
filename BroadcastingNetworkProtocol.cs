@@ -556,7 +556,7 @@ public class BroadcastingNetworkProtocol
 
         Send(ms.ToArray());
 
-        Task.Run(CheckRequestTrackDataSucceeded);
+        Task.Run(CheckRequestTrackDataSucceeded).ContinueWith(t => Log.Error(t.Exception, "CheckRequestTrackDataSucceeded ERROR: {Error}", t.Exception?.Message), TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private int _checkRequestTrackDataSucceededCount;
