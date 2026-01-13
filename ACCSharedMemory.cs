@@ -444,6 +444,7 @@ namespace AssettoCorsaSharedMemory
             { CarModel.lamborghini_huracan_gt3_evo_2019, new(4551, 2221) },
             { CarModel.lamborghini_huracan_supertrofeo, new(4549, 1945) },
             { CarModel.lamborghini_huracan_supertrofeo_evo2, new(4551, 2221) },
+            { CarModel.lamborghini_huracan_gt3_evo2, new(4551, 2221) }, //https://www.h-r.com/en/blog/2024/11/28/abt-lamborghini-huracan-gt3-evo2-with-hr-racing-springs/
             { CarModel.lexus_rc_f_gt3, new(4705, 2000) },
             { CarModel.maserati_mc_gt4, new(4930, 1920) }, //Unsure: https://fastestlaps.com/models/maserati-granturismo-mc-stradale
             { CarModel.mclaren_570s_gt4, new(4606, 2095) },
