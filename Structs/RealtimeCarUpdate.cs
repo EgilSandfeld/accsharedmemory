@@ -30,6 +30,10 @@ namespace AssettoCorsaSharedMemory.Structs
         public LapInfo BestSessionLap { get; internal set; }
         public LapInfo LastLap { get; internal set; }
         public LapInfo CurrentLap { get; internal set; }
+        
+        /// <summary>
+        /// May indicate completed laps?
+        /// </summary>
         public int Laps { get; internal set; }
         public ushort CupPosition { get; internal set; }
         public byte DriverCount { get; internal set; }

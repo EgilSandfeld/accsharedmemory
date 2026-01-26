@@ -57,7 +57,7 @@
     {
         NONE = 0,
 		Starting = 1,
-		PreFormation = 2,
+		PreFormation = 2, //Practice before green light (Drive screen)
 		FormationLap = 3,
 		PreSession = 4,
 		Session = 5,
