@@ -31,7 +31,6 @@
     <DebugType>full</DebugType>
     <LangVersion>latest</LangVersion>
     <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <OutputPath>bin\x64\DebugFull\</OutputPath>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
