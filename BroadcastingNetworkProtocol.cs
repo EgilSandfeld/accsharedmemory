@@ -15,6 +15,7 @@ public class BroadcastingNetworkProtocol
     public const int BROADCASTING_PROTOCOL_VERSION = 4;
     private string ConnectionIdentifier { get; }
     private SendMessageDelegate Send { get; }
+    private readonly BroadcastingProtocolGame _game;
     public int ConnectionId { get; private set; } = -1;
     public float TrackMeters { get; private set; }
 
@@ -56,7 +57,7 @@ public class BroadcastingNetworkProtocol
     private DateTime _lastTrackDataUpdateTime;
 
 
-    internal BroadcastingNetworkProtocol(string connectionIdentifier, SendMessageDelegate sendMessageDelegate, int previousConnectionId)
+    internal BroadcastingNetworkProtocol(string connectionIdentifier, SendMessageDelegate sendMessageDelegate, int previousConnectionId, BroadcastingProtocolGame game = BroadcastingProtocolGame.AssettoCorsaCompetizione)
     {
         if (string.IsNullOrEmpty(connectionIdentifier))
             throw new ArgumentNullException(nameof(connectionIdentifier), "No connection identifier set; we use this to distinguish different connections. Using the remote IP:Port is a good idea");
@@ -64,6 +65,7 @@ public class BroadcastingNetworkProtocol
         ConnectionId = previousConnectionId;
         ConnectionIdentifier = connectionIdentifier;
         Send = sendMessageDelegate ?? throw new ArgumentNullException(nameof(sendMessageDelegate), "The protocol class doesn't know anything about the network layer; please put a callback we can use to send data via UDP");
+        _game = game;
     }
 
     private int _messagesReceived;
@@ -166,7 +168,10 @@ public class BroadcastingNetworkProtocol
         }
 
         carInfo.CarModelType = br.ReadByte(); // Byte sized car model
-        carInfo.ModelType = (ACCSharedMemory.CarModel)carInfo.CarModelType;
+        carInfo.ACEModelType = carInfo.CarModelType;
+        carInfo.ModelType = _game == BroadcastingProtocolGame.AssettoCorsaCompetizione
+            ? (ACCSharedMemory.CarModel)carInfo.CarModelType
+            : ACCSharedMemory.CarModel.Unknown;
         
         carInfo.TeamName = ReadString(br);
         carInfo.RaceNumber = br.ReadInt32();
@@ -224,12 +229,21 @@ public class BroadcastingNetworkProtocol
         }
 
         var rawTimeOfDay = br.ReadSingle();
-        update.TimeOfDay = SafeFromSeconds(rawTimeOfDay);
+        update.TimeOfDay = _game == BroadcastingProtocolGame.AssettoCorsaEvo ? SafeFromMilliseconds(rawTimeOfDay) : SafeFromSeconds(rawTimeOfDay);
         update.AmbientTemp = br.ReadByte();
         update.TrackTemp = br.ReadByte();
-        /*update.Clouds = */br.ReadByte()/* / 10.0f*/;
-        /*update.RainLevel = */br.ReadByte()/* / 10.0f*/;
-        /*update.Wetness = */br.ReadByte()/* / 10.0f*/;
+        var clouds = br.ReadByte() / 10.0f;
+        var rainLevel = br.ReadByte() / 10.0f;
+        var wetness = br.ReadByte() / 10.0f;
+
+        if (_game == BroadcastingProtocolGame.AssettoCorsaEvo)
+        {
+#pragma warning disable CS0618 // Preserve raw UDP weather values; ACC marks these as deprecated but ACE still sends them here.
+            update.Clouds = clouds;
+            update.RainLevel = rainLevel;
+            update.Wetness = wetness;
+#pragma warning restore CS0618
+        }
 
         update.BestSessionLap = ReadLap(br);
 

@@ -26,13 +26,18 @@ namespace AssettoCorsaSharedMemory
         /// To get the events delivered inside the UI thread, just create this object from the UI thread/synchronization context.
         /// </summary>
         public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval, Action<Exception, string, bool, bool> bugger, int previousConnectionId)
+            : this(ip, port, displayName, connectionPassword, commandPassword, msRealtimeUpdateInterval, bugger, previousConnectionId, BroadcastingProtocolGame.AssettoCorsaCompetizione)
+        {
+        }
+
+        public ACCUdpRemoteClient(string ip, int port, string displayName, string connectionPassword, string commandPassword, int msRealtimeUpdateInterval, Action<Exception, string, bool, bool> bugger, int previousConnectionId, BroadcastingProtocolGame game = BroadcastingProtocolGame.AssettoCorsaCompetizione)
         {
             Ip = ip;
             Port = port;
             IpPort = $"{ip}:{port}";
             _bugger = bugger;
-            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient: Ip={Ip} Port={IpPort}", Ip, Port);
-            MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId);
+            Log.ForContext("Context", "Sim").Verbose("ACCUdpRemoteClient: Game={Game} Ip={Ip} Port={IpPort}", game, Ip, Port);
+            MessageHandler = new BroadcastingNetworkProtocol(IpPort, Send, previousConnectionId, game);
             MessageHandler.OnConnectionStateChanged += (id, success, ro, err) =>
             {
                 _registered = success;

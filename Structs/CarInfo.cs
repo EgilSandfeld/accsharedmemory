@@ -6,6 +6,7 @@ namespace AssettoCorsaSharedMemory.Structs
     {
         public ushort CarIndex { get; }
         public byte CarModelType { get; internal set; }
+        public byte ACEModelType { get; internal set; }
         public ACCSharedMemory.CarModel ModelType { get; set; }
         public string TeamName { get; internal set; }
         public int RaceNumber { get; internal set; }

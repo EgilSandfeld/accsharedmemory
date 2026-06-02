@@ -26,6 +26,12 @@
 		TRACK_DATA = 5,
 		BROADCASTING_EVENT = 7
 	}
+
+    public enum BroadcastingProtocolGame
+    {
+        AssettoCorsaCompetizione = 0,
+        AssettoCorsaEvo = 1
+    }
 	
     public enum DriverCategory
     {
